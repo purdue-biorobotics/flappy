@@ -4,50 +4,68 @@
 # Direct motor driven flapping wing MAV simulation
 #######################################################################
 
-
 import gym
 from gym.spaces import Box
 import numpy as np
 import json
+import pydart2 as pydart
 
-from flappy.envs.simulation import Simulation
-from flappy.envs.controllers.pid_controller import PIDController
-from flappy.envs.mission import Mission
+from flappy.envs.fwmav.simulation import Simulation
+from flappy.envs.fwmav.mission import Mission
+
+# GUI
+from flappy.envs.fwmav.MyGLUTWindow import GUI
+import time
 
 class FWMAVSimEnv(gym.Env):
 	def __init__(self):
-		with open ('./flappy/envs/config/sim_config.json') as file:
+		# initialize simulation and fwmav
+		with open ('./flappy/envs/fwmav/config/sim_config.json') as file:
 			sim_config = json.load(file)
-		with open('./flappy/envs/config/mav_config_list.json') as file:
+		with open('./flappy/envs/fwmav/config/mav_config_list.json') as file:
 			mav_config_list = json.load(file)
 		self.sim = Simulation(mav_config_list, sim_config)
+		ground_skel = self.sim.world.add_skeleton('./flappy/urdf/ground.urdf')
+
 		self.observation = np.zeros([18], dtype=np.float64)
 		self.observation_bound = np.array([
 			1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
 			1.0, 1.0, 1.0, 1.0, 1.0
 		])
 
-		self.action_lb = np.array([-5, -3, -3.5, -0.15])
-		self.action_ub = np.array([11, 3, 3.5, 0.15])
-		self.total_action_lb = np.array([0, -3, -3.5, -0.15])
-		self.total_action_ub = np.array([18.0, 3, 3.5, 0.15])
+		self.action_lb = np.array([0.0, -3.0, -3.5, -0.15])
+		self.action_ub = np.array([18.0, 3.0, 3.5, 0.15])
+		self.total_action_lb = np.array([0.0, -3.0, -3.5, -0.15])
+		self.total_action_ub = np.array([18.0, 3.0, 3.5, 0.15])
 		self.action_old = np.array([0, 0, 0, 0])
-		self.pid_policy = PIDController(self.sim.dt_c)
-		self.mission = Mission(self.pid_policy)
+		self.mission = Mission()
 
 		self.done = False
 		self.reward = 0
+		self.random_init = True
 
-		self.is_print = False
+		self.is_sim_on = False
+		self.is_print_on = False
+		self.is_visual_on = False
+		self.dt_v = 1/sim_config['f_visual']
 
-	def enable_viz(self):
-		self.sim.enable_viz()
+	def config(self, random_init=True, randomize_sim=True, phantom_sensor=False):
+		self.random_init = random_init
+		self.sim.randomize = randomize_sim
+		self.sim.phantom_sensor = phantom_sensor
+		self.sim.sensor_fusion.phantom = phantom_sensor
+
+	def enable_visualization(self):
+		self.is_visual_on = True
+		self.next_visualization_time = time.time()
+
+		self.gui = GUI(self, "FWMAV")
+		self.gui.cv.acquire()
+		print("init GUI")
+		self.gui.start()
 
 	def enable_print(self):
-		self.is_print = True
-
-	def set_attack_type(self, attack_type):
-		self.attack_type = attack_type
+		self.is_print_on = True
 
 	@property
 	def observation_space(self):
@@ -55,13 +73,19 @@ class FWMAVSimEnv(gym.Env):
 
 	@property
 	def action_space(self):
-		return Box(np.array([-5.0, -3, -3.5, -0.15]), np.array([11.0, 3, 3.5, 0.15]))
+		return Box(np.array([0.0, -3.0, -3.5, -0.15]), np.array([18.0, 3.0, 3.5, 0.15]))
 
 	def reset(self):
-		rpy_limit = 0.785398 	# 45 deg
-		pqr_limit = 3.14159		# 180 deg/s
-		xyz_limit = 0.1			# 10 cm
-		xyz_dot_limit = 0.1		# 10cm/s
+		if self.random_init:
+			rpy_limit = 0.785398 	# 45 deg
+			pqr_limit = 3.14159		# 180 deg/s
+			xyz_limit = 0.1			# 10 cm
+			xyz_dot_limit = 0.1		# 10cm/s
+		else:
+			rpy_limit = 0.0 	# 45 deg
+			pqr_limit = 0.0		# 180 deg/s
+			xyz_limit = 0.0			# 10 cm
+			xyz_dot_limit = 0.0		# 10cm/s
 
 		positions = np.zeros([10,1], dtype=np.float64)
 		velocities = np.zeros([10,1], dtype=np.float64)
@@ -80,6 +104,8 @@ class FWMAVSimEnv(gym.Env):
 		self.observation = self.get_observation()
 		self.next_control_time = self.sim.dt_c
 		self.mission.reset()
+		self.is_sim_on = False
+		self.next_visualization_time = time.time()
 
 		return self.observation
 
@@ -89,29 +115,43 @@ class FWMAVSimEnv(gym.Env):
 		
 	def step(self, action):
 		# scale action from [-1,1] to [action_lb, action_ub]
-		scaled_action = self.action_lb + \
-			(action + 1.) * 0.5 * (self.action_ub - self.action_lb)
+		scaled_action = (action+1)*0.5*(self.action_ub-self.action_lb)+self.action_lb
 		scaled_action = np.clip(scaled_action, self.action_lb, self.action_ub)
 
-		self.mission.update_waypoint(self.sim.world.time())
+		# total_action = policy_action + pid_action
+		total_action = np.clip(scaled_action, self.total_action_lb, self.total_action_ub)
 
-		action_pid = np.squeeze(
-			self.pid_policy.get_action(self.sim.states, self.sim.dt_c,
-									   self.sim.sensor_fusion))
-
-		# input_signal = policy_action + pid_action
-		input_signal = np.clip(scaled_action + action_pid, self.total_action_lb, self.total_action_ub)
+		# convert action to voltage signal
+		max_voltage = total_action[0]
+		voltage_diff = total_action[1]
+		voltage_bias = total_action[2]
+		split_cycle = total_action[3]
+		input_voltage = np.zeros([2],dtype=np.float64)		
+		input_voltage[0] = self.generate_control_signal(self.sim.flapper1.frequency, max_voltage, voltage_diff, voltage_bias, -split_cycle, self.sim.world.time(), 0)
+		input_voltage[1] = self.generate_control_signal(self.sim.flapper1.frequency, max_voltage, -voltage_diff, voltage_bias, split_cycle, self.sim.world.time(), 0)
+		input_voltage[0] = np.clip(input_voltage[0], -18, 18)
+		input_voltage[1] = np.clip(input_voltage[1], -18, 18)
 
 		# run simulation and down sample from f_sim to f_control
 		while self.sim.world.time() < self.next_control_time:
-			self.sim.step(input_signal)
+			self.sim.step(input_voltage)
 		self.next_control_time += self.sim.dt_c
 
+		# update control target
+		self.mission.update_waypoint(self.sim.world.time())
+
+		# update observation, reward, terminal
 		self.observation = self.get_observation()
 		reward = self.get_reward(action)
 		done = self.get_terminal()
 
-		return self.observation, reward, done, {}
+		# visulization
+		if self.is_visual_on and time.time() >= self.next_visualization_time:
+			self.gui.cv.wait()
+			self.next_visualization_time = time.time() + self.dt_v
+
+		info = {'time' : self.sim.world.time()}
+		return self.observation, reward, done, info
 
 	def get_observation(self):
 		# define observations here3
@@ -123,26 +163,24 @@ class FWMAVSimEnv(gym.Env):
 		# angular velocities
 		
 		observation = np.zeros([18],dtype=np.float64)
+		
 		# get full states
-		flapper1_states = self.sim.states
-		# create rotation matrix
-		roll_angle = flapper1_states['body_positions'][0]
-		pitch_angle = flapper1_states['body_positions'][1]
-		yaw_angle = flapper1_states['body_positions'][2]
+		roll_angle = self.sim.sensor_fusion.out_roll_
+		pitch_angle = self.sim.sensor_fusion.out_pitch_
+		yaw_angle = self.sim.sensor_fusion.out_yaw_
 
 		R = self.euler_2_R(roll_angle, pitch_angle, yaw_angle)
 		observation[0:9] = R.reshape(-1)
 
-		# other states
-		observation[9] = flapper1_states['body_positions'][3] - self.mission.pos_target_x_	# special x
-		observation[10] = flapper1_states['body_positions'][4] - self.mission.pos_target_y_	# special y
-		observation[11] = flapper1_states['body_positions'][5] - self.mission.pos_target_z_	# special z
-		observation[12] = flapper1_states['body_spatial_velocities'][0]	# spatial x_dot
-		observation[13] = flapper1_states['body_spatial_velocities'][1]	# spatial y_dot
-		observation[14] = flapper1_states['body_spatial_velocities'][2]	# spatial z_dot
-		observation[15] = flapper1_states['body_velocities'][0]	# p
-		observation[16] = flapper1_states['body_velocities'][1]	# q
-		observation[17] = flapper1_states['body_velocities'][2]	# r
+		observation[9] = self.sim.sensor_fusion.out_x_ - self.mission.pos_target_x_
+		observation[10] = self.sim.sensor_fusion.out_y_ - self.mission.pos_target_y_
+		observation[11] = self.sim.sensor_fusion.out_z_ - self.mission.pos_target_z_
+		observation[12] = self.sim.sensor_fusion.out_x_dot_
+		observation[13] = self.sim.sensor_fusion.out_y_dot_
+		observation[14] = self.sim.sensor_fusion.out_z_dot_
+		observation[15] = self.sim.sensor_fusion.IMU_gx_
+		observation[16] = self.sim.sensor_fusion.IMU_gy_
+		observation[17] = self.sim.sensor_fusion.IMU_gz_
 
 		observation = observation/self.observation_bound
 
@@ -198,6 +236,25 @@ class FWMAVSimEnv(gym.Env):
 			return True
 		return False
 
+	def generate_control_signal(self, f, Umax, delta, bias, sc, t, phase_0):
+		V = Umax + delta
+		V0 = bias
+		sigma = 0.5+sc
+
+		T = 1/f
+		t_phase = phase_0/360*T
+		t = t+t_phase
+		period = np.floor(t/T)
+		t = t-period*T
+
+		if 0<=t and t<sigma/f:
+			u = V*np.cos(2*np.pi*f*(t)/(2*sigma))+V0
+		elif sigma/f<=t and t<1/f:
+			u = V*np.cos((2*np.pi*f*(t)-2*np.pi)/(2*(1-sigma)))+V0
+		else:
+			u=0
+		return u
+
 	def euler_2_R(self, phi, theta, psi):
 		R = np.zeros([3, 3], dtype=np.float64)
 
@@ -220,6 +277,3 @@ class FWMAVSimEnv(gym.Env):
 
 		return R
 
-	def render(self):
-		# self.sim.render()
-		return

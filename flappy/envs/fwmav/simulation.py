@@ -10,22 +10,15 @@ import pydart2 as pydart
 import threading
 import click
 import time
-from pydart2.gui.glut.window import GLUTWindow
-from pydart2.gui.trackball import Trackball
-import OpenGL.GLUT as GLUT
 
 # robot
-from flappy.envs.fwmav import FWMAV
-
-# controllers
-from flappy.envs.controllers.pid_controller import PIDController
+from flappy.envs.fwmav.fwmav import FWMAV
 
 # sensors
-from flappy.envs.sensor import Sensor_IMU_Vicon
-from flappy.envs.sensor_fusion_pos import SensorFusion
+from flappy.envs.fwmav.sensor import Sensor_IMU_Vicon
+from flappy.envs.fwmav.sensor_fusion_pos import SensorFusion
 
-# GUI
-from flappy.envs.MyGLUTWindow import GUI
+
 
 class Simulation:
 	def __init__(self, mav_config_list, sim_config):
@@ -35,9 +28,9 @@ class Simulation:
 		self.dt_s = 1/sim_config['f_sensor']
 		self.dt_imu = 1/sim_config['f_imu']
 		self.dt_vicon = 1/sim_config['f_vicon']
-		self.phantom_sensor = sim_config['phantom_sensor']
+		self.phantom_sensor = False
+		self.randomize = False
 		self.fps = 24
-		self.sim_on = False
 
 		self.config = sim_config
 		
@@ -46,7 +39,7 @@ class Simulation:
 
 		# add flapper in world, flapper skeleton wrapped in FWMAV and configured in FWMAV
 		# 0 = no trim, 1 = with trim
-		self.flapper1 = FWMAV(mav_config_list[6], self.world, self.dt_d)		#2 is latest trim with base, 4 is without base
+		self.flapper1 = FWMAV(mav_config_list[1], self.world, self.dt_d)		#2 is latest trim with base, 4 is without base
 		self.states = self.flapper1.get_states()
 
 		# initialize glut window
@@ -127,10 +120,6 @@ class Simulation:
 		# self.data['fuse_y_ddot']=[]
 		# self.data['fuse_z_ddot']=[]
 
-	def enable_viz(self):
-		self.win = GUI(self)
-		self.win.start()
-
 	def update_state(self):
 		self.states = self.flapper1.get_states()
 
@@ -145,23 +134,15 @@ class Simulation:
 		return False
 
 	def radonmize(self):
-		self.flapper1.randomize()
+		if self.randomize:
+			self.flapper1.randomize()
 		return
-
-	# def render(self):
-	# 	fault = False
-	# 	self.glutwindow.drawGL()
-	# 	# if time.time() >= self.next_visulizaiton_time:
-	# 	# 	if self.visulization:
-	# 	# 		self.glutwindow.drawGL()
-	# 	# 	self.next_visulizaiton_time = self.next_visulizaiton_time + 1/self.fps
-	# 	return fault
 
 	def reset(self):
 		self.world.reset()
 		self.flapper1.reset()
 
-		self.sim_on = False
+		
 		# self.visulization = True
 		# self.next_visulizaiton_time = 1/self.fps + time.time()
 		self.next_sensor_fusion_time = 0.0
@@ -189,28 +170,15 @@ class Simulation:
 		self.update_state()
 
 
-	def step(self, action):
-		#print('===================== time = %.4f =====================' % self.world.time(), end="\n\r")
+	def step(self, input_voltage):
+		# print('===================== time = %.4f =====================' % self.world.time(), end="\n\r")
 		self.sensor.update_raw_data(self.world.time(), self.states)
 		if self.world.time()>=self.next_sensor_fusion_time:
 			self.next_sensor_fusion_time += self.dt_s
-			self.sensor_fusion.run(self.sensor,self.world.time())
+			self.sensor_fusion.run(self.sensor, self.states)
 			#print('fusion_roll = %.4f, roll = %.4f' % (self.sensor_fusion.out_roll_, self.states['body_positions'][0,0]), end="\n\r")
 			#print('fusion_pitch = %.4f, pitch = %.4f' % (self.sensor_fusion.out_pitch_, self.states['body_positions'][1,0]), end="\n\r")
 			#print('fusion_yaw = %.4f, yaw = %.4f' % (self.sensor_fusion.out_yaw_, self.states['body_positions'][2,0]), end="\n\r")
-
-		max_voltage = action[0]
-		voltage_diff = action[1]
-		voltage_bias = action[2]
-		split_cycle = action[3]
-
-		input_voltage = np.zeros([2],dtype=np.float64)
-		
-		input_voltage[0] = self.generate_control_signal(34, max_voltage, voltage_diff, voltage_bias, -split_cycle, self.world.time(), 0)
-		input_voltage[1] = self.generate_control_signal(34, max_voltage, -voltage_diff, voltage_bias, split_cycle, self.world.time(), 0)
-
-		input_voltage[0] = np.clip(input_voltage[0], -18, 18)
-		input_voltage[1] = np.clip(input_voltage[1], -18, 18)
 
 		# 12V sine wave for debugging
 		#input_voltage[0] = 12*np.cos(self.flapper1.frequency*2*np.pi*self.world.time())
@@ -304,24 +272,7 @@ class Simulation:
 		
 		return self.states
 
-	def generate_control_signal(self, f, Umax, delta, bias, sc, t, phase_0):
-		V = Umax + delta
-		V0 = bias
-		sigma = 0.5+sc
-
-		T = 1/f
-		t_phase = phase_0/360*T
-		t = t+t_phase
-		period = np.floor(t/T)
-		t = t-period*T
-
-		if 0<=t and t<sigma/f:
-			u = V*np.cos(2*np.pi*f*(t)/(2*sigma))+V0
-		elif sigma/f<=t and t<1/f:
-			u = V*np.cos((2*np.pi*f*(t)-2*np.pi)/(2*(1-sigma)))+V0
-		else:
-			u=0
-		return u
+	
 
 
 	def record_data(self):

@@ -12,17 +12,20 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.vec_env import SubprocVecEnv
 from stable_baselines.common import set_global_seeds
 
+from flappy.envs.fwmav.controllers.arc_xy_arc_z import ARCController
+from flappy.envs.fwmav.controllers.pid_controller import PIDController
 
 import time
 import argparse
 import importlib
 import numpy as np
 
-def make_env(env_id, rank, seed=0):
+def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
 	def _init():
 		env = gym.make(env_id)
+		env.config(random_init, randomize_sim, phantom_sensor)
 		if rank == 0:
-			env.enable_viz()
+			env.enable_visualization()
 			env.enable_print()
 		env.seed(seed + rank)
 		return env
@@ -30,20 +33,29 @@ def make_env(env_id, rank, seed=0):
 	# set_global_seeds(seed)
 	return _init
 
-
 class LazyModel:
-	def __init__(self):
-		pass
+	def __init__(self,env,model_type):
+		self.action_lb = env.action_lb
+		self.action_ub = env.action_ub
+		self.observation_bound = env.observation_bound
+		if model_type == 'PID':
+			self.policy = PIDController(env.sim.dt_c)
+		else:
+			self.policy = ARCController(env.sim.dt_c)
 
 	def predict(self, obs):
-		return np.array([[0, 0, 0, 0]]), None
-
+		action = self.policy.get_action(obs[0]*self.observation_bound)
+		# scale action from [action_lb, action_ub] to [-1,1]
+		normalized_action = (action-self.action_lb)/(self.action_ub - self.action_lb)*2 - 1
+		action = np.array([normalized_action])
+		return action, None
 
 def main(args):
-	env_id = 'fwmav-v0'
-	env = DummyVecEnv([make_env(env_id, 0)])
+	env_id = 'fwmav_hover-v0'
 
-	if args.model_type != 'PID':
+	env = DummyVecEnv([make_env(env_id, 0, random_init = args.rand_init, randomize_sim = args.rand_dynamics, phantom_sensor = args.phantom_sensor)])
+
+	if args.model_type != 'PID' and args.model_type != 'ARC':
 		try:
 			model_cls = getattr(
 				importlib.import_module('stable_baselines'), args.model_type)
@@ -55,14 +67,17 @@ def main(args):
 		except:
 			print(args.model_path, "Error: wrong model path")
 	else:
-		model = LazyModel()
+		model = LazyModel(env.envs[0],args.model_type)
 
 	obs = env.reset()
 	while True:
-		action, _ = model.predict(obs)
-		obs, rewards, done, info = env.step(action)
-		if done:
-			obs = env.reset()
+		if env.envs[0].is_sim_on == False:
+			env.envs[0].gui.cv.wait()
+		elif env.envs[0].is_sim_on:
+			action, _ = model.predict(obs)
+			obs, rewards, done, info = env.step(action)
+			# if done:
+			# 	obs = env.reset()
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
@@ -70,6 +85,10 @@ if __name__ == '__main__':
 	parser.add_argument('--model_path')
 	parser.add_argument(
 		'--policy_type', const='MlpPolicy', default='MlpPolicy', nargs='?')
+	parser.add_argument('--rand_init', action='store_true', default=False)
+	parser.add_argument('--rand_dynamics', action='store_true', default=False)
+	parser.add_argument('--phantom_sensor', action='store_true', default=False)
+
 	args = parser.parse_args()
 
 	main(args)

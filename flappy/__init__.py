@@ -1,6 +1,11 @@
 from gym.envs.registration import register
 
 register(
-    id='fwmav-v0',
-    entry_point='flappy.envs:FWMAVSimEnv',
+    id='fwmav_hover-v0',
+    entry_point='flappy.envs.fwmav:FWMAVSimEnv',
+)
+
+register(
+    id='fwmav_maneuver-v0',
+    entry_point='flappy.envs.fwmav:FWMAVManeuverEnv',
 )

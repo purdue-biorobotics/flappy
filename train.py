@@ -11,14 +11,12 @@ import argparse
 import importlib
 
 
-def make_env(env_id, rank, seed=0, attack_type='None'):
+def make_env(env_id, rank, seed=0):
     def _init():
         env = gym.make(env_id)
         if rank == 0:
-            env.enable_viz()
+            env.enable_visualization()
             env.enable_print()
-        if attack_type != 'None':
-            env.set_attack_type(attack_type)
         env.seed(seed + rank)
         return env
 
@@ -44,9 +42,9 @@ def main(args):
 
     start = time.time()
 
-    env_id = 'fwmav-v0'
+    env_id = 'fwmav_hover-v0'
     # env = DummyVecEnv([make_env(env_id, 1)])
-    env = SubprocVecEnv([make_env(env_id, i, attack_type=args.attack_type) for i in range(args.n_cpu)])
+    env = SubprocVecEnv([make_env(env_id, i) for i in range(args.n_cpu)])
 
     model = model_cls(policy_cls, env, verbose=0)
     model.learn(total_timesteps=args.time_step)
@@ -64,7 +62,6 @@ if __name__ == '__main__':
                         const='MlpPolicy', default='MlpPolicy', nargs='?')
     parser.add_argument('--n_cpu', const=4, default=4, type=int, nargs='?')
     parser.add_argument('--time_step', required=True, type=int, nargs='?')
-    parser.add_argument('--attack_type', default='None')
     args = parser.parse_args()
 
     main(args)

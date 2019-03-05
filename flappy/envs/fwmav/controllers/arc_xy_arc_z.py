@@ -12,7 +12,7 @@ class pid:
 		self.i = 0
 		self.d = 0
 
-class PIDController():
+class ARCController():
 	def __init__(self,dt):
 		self.dt_ = dt
 		# desired target
@@ -21,7 +21,7 @@ class PIDController():
 		
 		self.pos_target_x_ = 0
 		self.pos_target_y_ = 0
-		self.pos_target_z_ = 0.0
+		self.pos_target_z_ = 0
 		self.vel_target_z_ = 0
 
 		self.ang_ef_target_z_ = 0
@@ -63,7 +63,7 @@ class PIDController():
 
 		self.h_z = (0.018-0.012) + (0.098) + 0.01	#18-12 gram for mass estimation + +-5gram for disturbance + 0.01N(~1gram) for uncertainty
 		self.h_z = np.sum(self.theta_hat_z_max-self.theta_hat_z_min) + 0.01	#18-12 gram for mass estimation + +-5gram for disturbance + 0.01N(~1gram) for uncertainty
-		print('h_z = %.4f' % self.h_z, end="\n\r")
+		# print('h_z = %.4f' % self.h_z, end="\n\r")
 		
 		# regressor
 		self.phi_z = np.zeros([3,1])
@@ -96,9 +96,6 @@ class PIDController():
 		self.Gamma_z[2,2] = self.Gamma_z[2,2]
 		#print('Gamma_z=', end="\n\r")
 		#print(self.Gamma_z, end="\n\r")
-
-
-
 
 		####################################### xy controller #######################################
 
@@ -150,7 +147,6 @@ class PIDController():
 		self.I_y = 3500e-9			# kgm^2
 		self.I_z = 1800e-9			# kgm^2
 
-
 		# parameter estimate
 		self.theta_hat_xy = np.zeros([9,1])
 		self.theta_hat_xy[0,0] = self.tau_x		# roll torque offsed
@@ -189,8 +185,8 @@ class PIDController():
 		self.phi_xy = np.concatenate((np.eye(3),np.zeros([3,3]),np.eye(3)),axis = 0)	# 9x3 matrix
 
 		self.h_xy = np.matmul(self.phi_xy.transpose(),(self.theta_hat_xy_max-self.theta_hat_xy_min)) + 0.2e-3	# 3x9 * 9x1 = 3x1   +0.2Nmm for uncertainty
-		print('h_xy =', end="\n\r")
-		print(self.h_xy, end="\n\r")
+		# print('h_xy =', end="\n\r")
+		# print(self.h_xy, end="\n\r")
 
 		self.omega_x_eq_old_ = 0
 		self.omega_y_eq_old_ = 0
@@ -215,8 +211,8 @@ class PIDController():
 		self.Gamma_xy = np.eye(9)
 
 		# gain tuning
-		k_eq_x = 0.08#0.05			# controls I, large k_eq will result in oscilating theta and oscilating performance
-		k_eq_y = 0.08#0.05			# controls I, large k_eq will result in oscilating theta and oscilating performance
+		k_eq_x = 0.05#0.05-0.08			# controls I, large k_eq will result in oscilating theta and oscilating performance
+		k_eq_y = 0.05#0.05-0.08			# controls I, large k_eq will result in oscilating theta and oscilating performance
 		k_eq_yaw = 0.001
 		h_M_xy = self.h_xy
 		#self.epsilon_xy = 1/(4*k_eq_xy-self.lambda_3)*h_M_xy*2				# 3x1, not sure if correct, epsilon_xy mainly consists of the uncertainty term in h_xy
@@ -228,37 +224,34 @@ class PIDController():
 		k_i_x = k_eq_x**2/(4*zeta_xy**2)
 		k_i_y = k_eq_y**2/(4*zeta_xy**2)
 		k_i_yaw = k_eq_yaw**2/(4*zeta_xy**2)
-		print('k_i_x = %.4f' % k_i_x, end="\n\r")
-		print('k_i_y = %.4f' % k_i_y, end="\n\r")
-		print('k_i_yaw = %.4f' % k_i_yaw, end="\n\r")
+		# print('k_i_x = %.4f' % k_i_x, end="\n\r")
+		# print('k_i_y = %.4f' % k_i_y, end="\n\r")
+		# print('k_i_yaw = %.4f' % k_i_yaw, end="\n\r")
 		W_xy = np.diag([1.4e-3, 0.5e-3, 0.3e-3, 0, 0, 0, 1e-3, 0.5e-3, 0.04e-3])			# diag{max(|theta_max+theta_min|, theta_max-theta_min)}
 		s_phi_xy = self.phi_xy.transpose().dot(np.square(W_xy)).dot(self.phi_xy)			# 3x9 * 9x9 * 9x3 = 3x3
-		print('s_phi_xy=', end="\n\r")
-		print(s_phi_xy, end="\n\r")
+		# print('s_phi_xy=', end="\n\r")
+		# print(s_phi_xy, end="\n\r")
 		gamma_xy = k_i_x*np.linalg.inv(s_phi_xy)
 		gamma_y = k_i_y*np.linalg.inv(s_phi_xy)
 		gamma_yaw = k_i_yaw*np.linalg.inv(s_phi_xy)
 		gamma_xy[1,1] = gamma_y[1,1]
 		gamma_xy[2,2] = gamma_yaw[2,2]
 		#gamma_z = 5.5343
-		print('gamma_xy=', end="\n\r")
-		print(gamma_xy, end="\n\r")
+		# print('gamma_xy=', end="\n\r")
+		# print(gamma_xy, end="\n\r")
 		temp0 = np.concatenate((gamma_xy, np.zeros([3,6])), axis = 1)
 		temp2 = np.concatenate((np.zeros([3,6]), gamma_xy), axis = 1)
 		gamma_xy_99 = np.concatenate((temp0, np.zeros([3,9]), temp2),axis = 0)
 		self.Gamma_xy = gamma_xy_99.dot(np.square(W_xy))
-		print('Gamma_xy=', end="\n\r")
-		print(self.Gamma_xy, end="\n\r")
-
-
-
+		# print('Gamma_xy=', end="\n\r")
+		# print(self.Gamma_xy, end="\n\r")
 
 
 		# control voltage limit
 		self.differential_voltage_max_ = 2
 		self.mean_voltage_max_ = 2.5
-		self.split_cycle_max_ = 0.1
-		self.hover_voltage_ = 10.5
+		self.split_cycle_max_ = 0.15
+		self.hover_voltage_ = 9.3
 		self.voltage_amplitude_max_ = 18
 
 		self.voltage_amplitude_ = 12
@@ -290,90 +283,45 @@ class PIDController():
 		self.raw_velocity_z_old = 0
 
 
-	def get_action(self, states, dt, time, sensor_fusion):
-		self.dt_ = dt
-		self.sensor_read(states, sensor_fusion)
-
-		# if time> 2:
-		# 	# update target
-		# 	time_8 = time - 2
-		# 	self.pos_target_x_ = 7/24*np.sin(2*time_8)/((np.sin(time_8))**2+1)
-		# 	self.pos_target_y_ = 0.35*np.cos(time_8)/((np.sin(time_8))**2+1)-0.35
-		# if time>8.28:
-		# 	self.pos_target_x_ = 0
-		# 	self.pos_target_y_ = 0
-		# self.pos_target_x_ = 7/24*np.sin(2*time)/((np.sin(time))**2+1)
-		# self.pos_target_y_ = 0.35*np.cos(time)/((np.sin(time))**2+1)-0.35
+	def get_action(self, observation):
+		self.sensor_read(observation)
 		self.controller_run()
 
-		action_pid = np.zeros([4],dtype=np.float64)
+		action = np.zeros([4],dtype=np.float64)
 
-		action_pid[0] = self.voltage_amplitude_
-		action_pid[1] = self.differential_voltage_
-		action_pid[2] = self.mean_voltage_
-		action_pid[3] = self.split_cycle_
+		action[0] = self.voltage_amplitude_
+		action[1] = self.differential_voltage_
+		action[2] = self.mean_voltage_
+		action[3] = self.split_cycle_
 
-		return action_pid
+		return action
 
 	def controller_run(self):
 		self.z_control()
 		self.xy_control()
 
-	def sensor_read(self,states,sensor_fusion):
+	def sensor_read(self, observation):
 		self.vel_current_x_old_ = self.vel_current_x_
 		self.vel_current_y_old_ = self.vel_current_y_
-		#self.acc_current_x_old_ = self.acc_current_x_
-		#self.acc_current_y_old_ = self.acc_current_y_
-		#self.acceleration_z_old_ = self.acceleration_z_
 
-		# raw_pos_current_x_ = states['body_positions'][3,0] + np.random.normal(0,0.0005)
-		# raw_pos_current_y_ = states['body_positions'][4,0] + np.random.normal(0,0.0005)
-		# raw_vel_current_x_ = states['body_spatial_velocities'][0,0] + np.random.normal(0,0.0005)
-		# raw_vel_current_y_ = states['body_spatial_velocities'][1,0] + np.random.normal(0,0.0005)
-		# raw_roll_angle_ = states['body_positions'][0,0] + np.random.normal(0,2/180*np.pi)
-		# raw_pitch_angle_ = states['body_positions'][1,0] + np.random.normal(0,2/180*np.pi)
-		# raw_yaw_angle_ = states['body_positions'][2,0] + np.random.normal(0,2/180*np.pi)
-		# raw_gyro_x_ = states['body_velocities'][0,0] + np.random.normal(0.01,5/180*np.pi)
-		# raw_gyro_y_ = states['body_velocities'][1,0] + np.random.normal(0.01,5/180*np.pi)
-		# raw_gyro_z_ = states['body_velocities'][2,0] + np.random.normal(0.01,5/180*np.pi)
-		# raw_altitude_ = states['body_positions'][5,0] + np.random.normal(0,0.0005)
-		# raw_velocity_z_ = states['body_spatial_velocities'][2,0] + np.random.normal(0,0.005)
-		# raw_acceleration_z_ = states['body_spatial_accelerations'][2,0] + np.random.normal(0,0.05)
+		#updat raw observation
+		raw_pos_current_x_ = observation[9]
+		raw_pos_current_y_ = observation[10]
+		raw_vel_current_x_ = observation[12]
+		raw_vel_current_y_ = observation[13]
 
-		# raw_pos_current_x_ = states['body_positions'][3,0]
-		# raw_pos_current_y_ = states['body_positions'][4,0]
-		# raw_vel_current_x_ = states['body_spatial_velocities'][0,0]
-		# raw_vel_current_y_ = states['body_spatial_velocities'][1,0]
-		# raw_roll_angle_ = states['body_positions'][0,0]
-		# raw_pitch_angle_ = states['body_positions'][1,0]
-		# raw_yaw_angle_ = states['body_positions'][2,0]
-		# raw_gyro_x_ = states['body_velocities'][0,0]
-		# raw_gyro_y_ = states['body_velocities'][1,0]
-		# raw_gyro_z_ = states['body_velocities'][2,0]
-		# raw_altitude_ = states['body_positions'][5,0]
-		# raw_velocity_z_ = states['body_spatial_velocities'][2,0]
-		# raw_acceleration_z_ = states['body_spatial_accelerations'][2,0]
+		R = observation[0:9]
+		[raw_roll_angle_, raw_pitch_angle_, raw_yaw_angle_] = self.rotation_to_euler_angle(R.reshape(3,3))
 
-		raw_pos_current_x_ = sensor_fusion.out_x_
-		raw_pos_current_y_ = sensor_fusion.out_y_
-		raw_vel_current_x_ = sensor_fusion.out_x_dot_
-		raw_vel_current_y_ = sensor_fusion.out_y_dot_
-
-		raw_roll_angle_ = sensor_fusion.out_roll_
-		raw_pitch_angle_ = sensor_fusion.out_pitch_
-		raw_yaw_angle_ = sensor_fusion.out_yaw_
-
-		raw_gyro_x_ = sensor_fusion.IMU_gx_
-		raw_gyro_y_ = sensor_fusion.IMU_gy_
-		raw_gyro_z_ = sensor_fusion.IMU_gz_
-		raw_altitude_ = sensor_fusion.out_z_
-		raw_velocity_z_ = sensor_fusion.out_z_dot_
-		raw_acceleration_z_ = states['body_spatial_accelerations'][2,0] + np.random.normal(0,0.05)
-
+		raw_gyro_x_ = observation[15]
+		raw_gyro_y_ = observation[16]
+		raw_gyro_z_ = observation[17]
+		raw_altitude_ = observation[11]
+		raw_velocity_z_ = observation[14]
 		raw_acceleration_z_ = (raw_velocity_z_ - self.raw_velocity_z_old)/self.dt_
 		self.raw_velocity_z_old = raw_velocity_z_
 
-		# filter z with 34 Hz low pass
+		# filter with low pass
 		self.pos_current_x_ = self.pos_current_x_*(1-self.alpha_xyz) + raw_pos_current_x_*self.alpha_xyz
 		self.pos_current_y_ = self.pos_current_y_*(1-self.alpha_xyz) + raw_pos_current_y_*self.alpha_xyz
 		self.vel_current_x_ = self.vel_current_x_*(1-self.alpha_xyz) + raw_vel_current_x_*self.alpha_xyz
@@ -388,21 +336,6 @@ class PIDController():
 		self.velocity_z_ = self.velocity_z_*(1-self.alpha_xyz) + raw_velocity_z_*self.alpha_xyz
 		self.acceleration_z_ = self.acceleration_z_*(1-self.alpha_xyz) + raw_acceleration_z_*self.alpha_xyz
 
-		# self.pos_current_x_ = raw_pos_current_x_
-		# self.pos_current_y_ = raw_pos_current_y_
-		# self.vel_current_x_ = raw_vel_current_x_
-		# self.vel_current_y_ = raw_vel_current_y_
-		# self.roll_angle_ = raw_roll_angle_
-		# self.pitch_angle_ = raw_pitch_angle_
-		# self.yaw_angle_ = raw_yaw_angle_
-		# self.gyro_x_ = raw_gyro_x_
-		# self.gyro_y_ = raw_gyro_y_
-		# self.gyro_z_ = raw_gyro_z_
-
-		# self.altitude_ = raw_altitude_
-		# self.velocity_z_ = raw_velocity_z_
-		# self.acceleration_z_ = raw_acceleration_z_
-
 		self.sin_roll_ = np.sin(self.roll_angle_)
 		self.cos_roll_ = np.cos(self.roll_angle_)
 		self.sin_pitch_ = np.sin(self.pitch_angle_)
@@ -413,16 +346,10 @@ class PIDController():
 		# derivatives
 		self.acc_current_x_ = (self.vel_current_x_ - self.vel_current_x_old_)/self.dt_
 		self.acc_current_y_ = (self.vel_current_y_ - self.vel_current_y_old_)/self.dt_
-
-		#self.jer_current_x_ = (self.acc_current_x_ - self.acc_current_x_old_)/self.dt_
-		#self.jer_current_y_ = (self.acc_current_y_ - self.acc_current_y_old_)/self.dt_
-
-		#self.jerk_z_ = (self.acceleration_z_ - self.acceleration_z_old_)/self.dt_
-
-
+		
 
 	def xy_control(self):
-		############# implement element wise for easy porting to STM32
+		############# implement element wise for easy porting to ARM(STM32)
 
 		# filter position target with second order filter
 		# generate velocity, acceleration, jerk target
@@ -438,7 +365,7 @@ class PIDController():
 		self.acc_target_x_filtered_ = self.acc_target_x_filtered_ * (1-self.alpha_xy_target) + self.acc_target_x_*self.alpha_xy_target
 		self.jer_target_x_ = (self.acc_target_x_filtered_ - self.acc_target_x_filtered_old_)/self.dt_
 		self.jer_target_x_filtered_ = self.jer_target_x_filtered_ * (1-self.alpha_xy_target) + self.jer_target_x_*self.alpha_xy_target
-		print('pos_target_x_filtered_ = %.6f, vel_target_x_filtered_ = %.6f, acc_target_x_filtered_ = %.6f' % (self.pos_target_x_filtered_, self.vel_target_x_filtered_, self.acc_target_x_filtered_), end="\n\r")
+		# print('pos_target_x_filtered_ = %.6f, vel_target_x_filtered_ = %.6f, acc_target_x_filtered_ = %.6f' % (self.pos_target_x_filtered_, self.vel_target_x_filtered_, self.acc_target_x_filtered_), end="\n\r")
 
 
 		# y
@@ -480,8 +407,8 @@ class PIDController():
 
 		e_roll = self.roll_angle_ - 0
 
-		print('e_y = %.6f, e_y_dot = %.6f, e_y_ddot = %.6f' % (e_y, e_y_dot, e_y_ddot), end="\n\r")
-		print('e_x = %.6f, e_x_dot = %.6f, e_x_ddot = %.6f' % (e_x, e_x_dot, e_x_ddot), end="\n\r")
+		# print('e_y = %.6f, e_y_dot = %.6f, e_y_ddot = %.6f' % (e_y, e_y_dot, e_y_ddot), end="\n\r")
+		# print('e_x = %.6f, e_x_dot = %.6f, e_x_ddot = %.6f' % (e_x, e_x_dot, e_x_ddot), end="\n\r")
 
 
 		e_z = self.altitude_ - self.pos_target_z_filtered_
@@ -493,11 +420,11 @@ class PIDController():
 
 		x_tdot_eq = self.jer_target_x_filtered_ - self.lambda_1_pitch*e_x_ddot - self.lambda_2_pitch*e_x_dot  - self.lambda_3_pitch*e_x
 		y_tdot_eq = self.jer_target_y_filtered_ - self.lambda_1_roll*e_y_ddot - self.lambda_2_roll*e_y_dot  - self.lambda_3_roll*e_y
-		print('y_tdot_eq = %.4f' % y_tdot_eq, end="\n\r")
-		print('x_tdot_eq = %.4f' % x_tdot_eq, end="\n\r")
+		# print('y_tdot_eq = %.4f' % y_tdot_eq, end="\n\r")
+		# print('x_tdot_eq = %.4f' % x_tdot_eq, end="\n\r")
 
 		z_tdot_eq = self.jer_target_z_filtered_ - self.lambda_1*e_z_ddot - self.lambda_2*e_z_dot  - self.lambda_3*e_z
-		print('z_tdot_eq = %.4f' % z_tdot_eq, end="\n\r")
+		# print('z_tdot_eq = %.4f' % z_tdot_eq, end="\n\r")
 
 		# sliding surface (try use real mass first)
 		F_z = self.K_Fz*(self.voltage_amplitude_ - self.V_s)		#0.2-0.1N => 20-10 gram
@@ -506,30 +433,30 @@ class PIDController():
 		R_11 = self.cos_yaw_*self.cos_pitch_
 		R_21 = self.sin_yaw_*self.cos_pitch_
 		R_31 = -self.sin_pitch_
-		print('i: R_11 = %.6f, R_21 = %.6f, R_31 = %.6f' % (R_11, R_21, R_31), end="\n\r")
+		# print('i: R_11 = %.6f, R_21 = %.6f, R_31 = %.6f' % (R_11, R_21, R_31), end="\n\r")
 
 		# j
 		R_12 = self.cos_yaw_*self.sin_pitch_*self.cos_roll_ - self.sin_yaw_*self.cos_roll_
 		R_22 = self.sin_yaw_*self.sin_pitch_*self.sin_roll_ + self.cos_yaw_*self.cos_roll_
 		R_32 = self.cos_pitch_*self.sin_roll_
-		print('j: R_12 = %.6f, R_22 = %.6f, R_32 = %.6f' % (R_12, R_22, R_32), end="\n\r")
+		# print('j: R_12 = %.6f, R_22 = %.6f, R_32 = %.6f' % (R_12, R_22, R_32), end="\n\r")
 
-		print('mass/F_z = %.4f' % (self.mass/F_z), end="\n\r")
+		# print('mass/F_z = %.4f' % (self.mass/F_z), end="\n\r")
 
 		omega_x_eq = self.mass/F_z*(x_tdot_eq*R_12 + y_tdot_eq*R_22 + z_tdot_eq*R_32)			# ~ y_tdot_eq*mass/Fz (mass/Fz~=0.1)
-		print('omega_x_eq = %.4f' % omega_x_eq, end="\n\r")
+		# print('omega_x_eq = %.4f' % omega_x_eq, end="\n\r")
 		omega_y_eq = self.mass/F_z*(x_tdot_eq*R_11 + y_tdot_eq*R_21 + z_tdot_eq*R_31)
-		print('omega_y_eq = %.4f' % omega_y_eq, end="\n\r")
+		# print('omega_y_eq = %.4f' % omega_y_eq, end="\n\r")
 		omega_z_eq = self.rate_ef_target_z_ - self.lambda_psi*e_psi
 		#print('omega_z_eq = %.4f' % omega_z_eq, end="\n\r")
 
 		p_x = self.gyro_x_ + omega_x_eq# + 8*e_roll			# ~ y_tdot_eq*mass/Fz
 		p_y = self.gyro_y_ - omega_y_eq# + 10*e_pitch
 		p_z = self.gyro_z_ - omega_z_eq
-		print('gyro_x_ = %.4f' % self.gyro_x_, end="\n\r")
-		print('gyro_y_ = %.4f' % self.gyro_y_, end="\n\r")
-		print('p_x = %.4f' % p_x, end="\n\r")
-		print('p_y = %.4f' % p_y, end="\n\r")
+		# print('gyro_x_ = %.4f' % self.gyro_x_, end="\n\r")
+		# print('gyro_y_ = %.4f' % self.gyro_y_, end="\n\r")
+		# print('p_x = %.4f' % p_x, end="\n\r")
+		# print('p_y = %.4f' % p_y, end="\n\r")
 		# print('p_z = %.4f' % p_z, end="\n\r")
 		p = np.zeros([3,1])
 		p[0,0] = p_x
@@ -541,7 +468,7 @@ class PIDController():
 		omega_x_eq_dot = (omega_x_eq - self.omega_x_eq_old_)/self.dt_
 		omega_y_eq_dot = (omega_y_eq - self.omega_y_eq_old_)/self.dt_
 		omega_z_eq_dot = (omega_z_eq - self.omega_z_eq_old_)/self.dt_
-		print('omega_x_eq_dot = %.6f, omega_y_eq_dot = %.6f, omega_z_eq_dot = %.6f' % (omega_x_eq_dot, omega_y_eq_dot, omega_z_eq_dot), end="\n\r")
+		# print('omega_x_eq_dot = %.6f, omega_y_eq_dot = %.6f, omega_z_eq_dot = %.6f' % (omega_x_eq_dot, omega_y_eq_dot, omega_z_eq_dot), end="\n\r")
 
 
 		self.omega_x_eq_old_ = omega_x_eq
@@ -552,7 +479,7 @@ class PIDController():
 		self.phi_xy[3,0] = -(self.I_z - self.I_y)*self.gyro_y_*self.gyro_z_ + self.I_x*omega_x_eq_dot
 		self.phi_xy[4,1] = -(self.I_z - self.I_x)*self.gyro_x_*self.gyro_z_ + self.I_y*(-omega_y_eq_dot)
 		self.phi_xy[5,2] = -(self.I_y - self.I_x)*self.gyro_x_*self.gyro_y_ + self.I_z*(-omega_z_eq_dot)
-		print('phi_xy_x = %.6f, phi_xy_y = %.6f, phi_xy_z = %.6f' % (self.phi_xy[3,0], self.phi_xy[4,1], self.phi_xy[5,2]), end="\n\r")
+		# print('phi_xy_x = %.6f, phi_xy_y = %.6f, phi_xy_z = %.6f' % (self.phi_xy[3,0], self.phi_xy[4,1], self.phi_xy[5,2]), end="\n\r")
 
 
 		# control input
@@ -560,14 +487,14 @@ class PIDController():
 		self.phi_xy[4,1] = 0
 		self.phi_xy[5,2] = 0
 		u_a_xy = -self.phi_xy.transpose().dot(self.theta_hat_xy)	#3x1
-		print('tau_x = %.4f' % self.theta_hat_xy[0,0], end="\n\r")
-		print('middle term = %.4f' % self.phi_xy[3,0], end="\n\r")
-		print('d_x = %.4f' % self.theta_hat_xy[6,0], end="\n\r")
-		print('u_a_x = %.4f' % u_a_xy[0,0], end="\n\r")
-		print('tau_y = %.4f' % self.theta_hat_xy[1,0], end="\n\r")
-		print('middle term = %.4f' % self.phi_xy[4,1], end="\n\r")
-		print('d_y = %.4f' % self.theta_hat_xy[7,0], end="\n\r")
-		print('u_a_y = %.4f' % u_a_xy[1,0], end="\n\r")
+		# print('tau_x = %.4f' % self.theta_hat_xy[0,0], end="\n\r")
+		# print('middle term = %.4f' % self.phi_xy[3,0], end="\n\r")
+		# print('d_x = %.4f' % self.theta_hat_xy[6,0], end="\n\r")
+		# print('u_a_x = %.4f' % u_a_xy[0,0], end="\n\r")
+		# print('tau_y = %.4f' % self.theta_hat_xy[1,0], end="\n\r")
+		# print('middle term = %.4f' % self.phi_xy[4,1], end="\n\r")
+		# print('d_y = %.4f' % self.theta_hat_xy[7,0], end="\n\r")
+		# print('u_a_y = %.4f' % u_a_xy[1,0], end="\n\r")
 		# print('tau_z = %.4f' % self.theta_hat_xy[2,0], end="\n\r")
 		# print('middle term = %.4f' % self.phi_xy[5,2], end="\n\r")
 		# print('d_z = %.4f' % self.theta_hat_xy[8,0], end="\n\r")
@@ -590,8 +517,8 @@ class PIDController():
 		self.theta_hat_xy = self.theta_hat_xy + theta_hat_xy_dot*self.dt_
 		#print('m_hat = %.6f, 1_hat = %.6f, d_hat = %.6f' % (self.theta_hat_z[0,0], self.theta_hat_z[1,0], self.theta_hat_z[2,0]), end="\n\r")
 		self.theta_hat_xy = np.clip(self.theta_hat_xy, self.theta_hat_xy_min, self.theta_hat_xy_max)
-		print('tau_x_hat = %.6f, tau_y_hat = %.6f, tau_z_hat = %.6f' % (self.theta_hat_xy[0,0], self.theta_hat_xy[1,0], self.theta_hat_xy[2,0]), end="\n\r")
-		print('dx_hat = %.6f, d_y_hat = %.6f, d_z_hat = %.6f' % (self.theta_hat_xy[6,0], self.theta_hat_xy[7,0], self.theta_hat_xy[8,0]), end="\n\r")
+		# print('tau_x_hat = %.6f, tau_y_hat = %.6f, tau_z_hat = %.6f' % (self.theta_hat_xy[0,0], self.theta_hat_xy[1,0], self.theta_hat_xy[2,0]), end="\n\r")
+		# print('dx_hat = %.6f, d_y_hat = %.6f, d_z_hat = %.6f' % (self.theta_hat_xy[6,0], self.theta_hat_xy[7,0], self.theta_hat_xy[8,0]), end="\n\r")
 
 		# output voltage
 		Kuuz_xy = u_a_xy + u_s1_xy + u_s2_xy
@@ -602,18 +529,18 @@ class PIDController():
 		# print('voltage_out =', end="\n\r")
 		# print(voltage_out, end="\n\r")
 
-		print('u_a_x(V) = %.6f, u_a_y(V) = %.6f, u_a_z(V) = %.6f' % (u_a_xy[0,0]/self.K_Tx, u_a_xy[1,0]/self.K_Ty, u_a_xy[2,0]/self.K_Tz), end="\n\r")
-		print('u_s1_x(V) = %.6f, u_s1_y(V) = %.6f, u_s1_z(V) = %.6f' % (u_s1_xy[0,0]/self.K_Tx, u_s1_xy[1,0]/self.K_Ty, u_s1_xy[2,0]/self.K_Tz), end="\n\r")
-		print('u_s2_x(V) = %.6f, u_s2_y(V) = %.6f, u_s2_z(V) = %.6f' % (u_s2_xy[0,0]/self.K_Tx, u_s2_xy[1,0]/self.K_Ty, u_s2_xy[2,0]/self.K_Tz), end="\n\r")
+		# print('u_a_x(V) = %.6f, u_a_y(V) = %.6f, u_a_z(V) = %.6f' % (u_a_xy[0,0]/self.K_Tx, u_a_xy[1,0]/self.K_Ty, u_a_xy[2,0]/self.K_Tz), end="\n\r")
+		# print('u_s1_x(V) = %.6f, u_s1_y(V) = %.6f, u_s1_z(V) = %.6f' % (u_s1_xy[0,0]/self.K_Tx, u_s1_xy[1,0]/self.K_Ty, u_s1_xy[2,0]/self.K_Tz), end="\n\r")
+		# print('u_s2_x(V) = %.6f, u_s2_y(V) = %.6f, u_s2_z(V) = %.6f' % (u_s2_xy[0,0]/self.K_Tx, u_s2_xy[1,0]/self.K_Ty, u_s2_xy[2,0]/self.K_Tz), end="\n\r")
 
-		print('In u_s1_x(V): -(k_s1_x*omega_x) %.6f - (k_s1_x*mass/F_z*(x_tdot_eq*R_12)) %.6f -  (k_s1_x*mass/F_z*(y_tdot_eq*R_22)) %.6f - (k_s1_x*mass/F_z*(z_tdot_eq*R_32)) %.6f' % (-self.k_s1_xy[0]*self.gyro_x_/self.K_Tx, -self.k_s1_xy[0]*self.mass/F_z*x_tdot_eq*R_12/self.K_Tx, -self.k_s1_xy[0]*self.mass/F_z*y_tdot_eq*R_22/self.K_Tx, -self.k_s1_xy[0]*self.mass/F_z*z_tdot_eq*R_32/self.K_Tx), end="\n\r")
-		print('In u_s1_y(V): -(k_s1_y*omega_y) %.6f + (k_s1_y*mass/F_z*(x_tdot_eq*R_11)) %.6f +  (k_s1_y*mass/F_z*(y_tdot_eq*R_21)) %.6f + (k_s1_y*mass/F_z*(z_tdot_eq*R_31)) %.6f' % (-self.k_s1_xy[1]*self.gyro_y_/self.K_Ty, self.k_s1_xy[1]*self.mass/F_z*x_tdot_eq*R_11/self.K_Ty, self.k_s1_xy[1]*self.mass/F_z*y_tdot_eq*R_21/self.K_Ty, self.k_s1_xy[1]*self.mass/F_z*z_tdot_eq*R_31/self.K_Ty), end="\n\r")
+		# print('In u_s1_x(V): -(k_s1_x*omega_x) %.6f - (k_s1_x*mass/F_z*(x_tdot_eq*R_12)) %.6f -  (k_s1_x*mass/F_z*(y_tdot_eq*R_22)) %.6f - (k_s1_x*mass/F_z*(z_tdot_eq*R_32)) %.6f' % (-self.k_s1_xy[0]*self.gyro_x_/self.K_Tx, -self.k_s1_xy[0]*self.mass/F_z*x_tdot_eq*R_12/self.K_Tx, -self.k_s1_xy[0]*self.mass/F_z*y_tdot_eq*R_22/self.K_Tx, -self.k_s1_xy[0]*self.mass/F_z*z_tdot_eq*R_32/self.K_Tx), end="\n\r")
+		# print('In u_s1_y(V): -(k_s1_y*omega_y) %.6f + (k_s1_y*mass/F_z*(x_tdot_eq*R_11)) %.6f +  (k_s1_y*mass/F_z*(y_tdot_eq*R_21)) %.6f + (k_s1_y*mass/F_z*(z_tdot_eq*R_31)) %.6f' % (-self.k_s1_xy[1]*self.gyro_y_/self.K_Ty, self.k_s1_xy[1]*self.mass/F_z*x_tdot_eq*R_11/self.K_Ty, self.k_s1_xy[1]*self.mass/F_z*y_tdot_eq*R_21/self.K_Ty, self.k_s1_xy[1]*self.mass/F_z*z_tdot_eq*R_31/self.K_Ty), end="\n\r")
 
 
 		self.differential_voltage_ = np.clip(voltage_out_xy[0,0],  -self.differential_voltage_max_, self.differential_voltage_max_)
 		self.mean_voltage_ = np.clip(voltage_out_xy[1,0],  -self.mean_voltage_max_, self.mean_voltage_max_)
 		self.split_cycle_ = np.clip(voltage_out_xy[2,0],  -self.split_cycle_max_, self.split_cycle_max_)
-		print('differential_voltage_ = %.6f, mean_voltage_ = %.6f, split_cycle_ = %.6f' % (self.differential_voltage_, self.mean_voltage_, self.split_cycle_), end="\n\r")	
+		# print('differential_voltage_ = %.6f, mean_voltage_ = %.6f, split_cycle_ = %.6f' % (self.differential_voltage_, self.mean_voltage_, self.split_cycle_), end="\n\r")	
 		
 
 	def z_control(self):
@@ -681,5 +608,9 @@ class PIDController():
 		theta_dot[condi] = 0
 		return theta_dot
 
-
+	def rotation_to_euler_angle(self,R):
+		roll = np.arctan2(R[2,1],R[2,2])
+		pitch = np.arcsin(-R[2, 0])
+		yaw = np.arctan2(R[1,0],R[0,0])
+		return roll, pitch, yaw
 

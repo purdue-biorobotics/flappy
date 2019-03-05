@@ -38,6 +38,17 @@ class FWMAV:
 		self.right_wing = Wing(1, config.right_shoulder_width, config.stroke_plane_offset)
 		self.add_flapper(world, z=0.0)
 
+		self.nominal_torso_mass = self.flapper_skel.bodynode('torso').mass()
+		self.nominal_torso_inertia = self.flapper_skel.bodynode('torso').inertia()
+		self.nominal_left_wing_mass = self.flapper_skel.bodynode('left_wing').mass()
+		self.nominal_left_wing_inertia = self.flapper_skel.bodynode('left_wing').inertia()
+		self.nominal_right_wing_mass = self.flapper_skel.bodynode('right_wing').mass()
+		self.nominal_right_wing_inertia = self.flapper_skel.bodynode('right_wing').inertia()
+		self.nominal_left_leading_edge_mass = self.flapper_skel.bodynode('left_leading_edge').mass()
+		self.nominal_left_leading_edge_inertia = self.flapper_skel.bodynode('left_leading_edge').inertia()
+		self.nominal_right_leading_edge_mass = self.flapper_skel.bodynode('right_leading_edge').mass()
+		self.nominal_right_leading_edge_inertia = self.flapper_skel.bodynode('right_leading_edge').inertia()
+
 		self.states = {	'body_positions': 				np.zeros([6,1]),
 						'body_velocities': 				np.zeros([6,1]),
 						'body_accelerations': 			np.zeros([6,1]),
@@ -60,51 +71,60 @@ class FWMAV:
 		self.dt_driver = dt_d
 
 		self.config = config
-		self.seed() # set random seed
 		self.reset() # call reset before simulation
 
 	def randomize(self):
+		k_rand_mech = 0.07	# 5 percent
+		k_rand_mass = 0.1	# 10 percent
+		k_rand_motor = 0.1	# 10 percent increase
+		k_rand_mid_stroke = 0.05	# 2.86 deg
+
+		# mechanical trim (angle limit, angle mid, spring stiffness)
+		self.left_spring_stiffness = self.config.left_spring_stiffness * np.random.normal(1, k_rand_mech)
+		self.right_spring_stiffness = self.config.right_spring_stiffness * np.random.normal(1, k_rand_mech)
+
+		self.left_rotate_lower = self.config.left_rotate_lower * np.random.normal(1, k_rand_mech)
+		self.left_rotate_upper = self.config.left_rotate_upper * np.random.normal(1, k_rand_mech)
+		self.right_rotate_lower = self.config.right_rotate_lower * np.random.normal(1, k_rand_mech)
+		self.right_rotate_upper = self.config.right_rotate_upper * np.random.normal(1, k_rand_mech)
+
+		self.left_stroke_mid = np.random.normal(0, k_rand_mid_stroke)
+		self.right_stroke_mid = np.random.normal(0, k_rand_mid_stroke)
+
+		# mass properities
+		k_rand_mass_torso = np.random.normal(1, k_rand_mass)
+		self.flapper_skel.bodynode('torso').set_mass(self.nominal_torso_mass * k_rand_mass_torso)
+		self.flapper_skel.bodynode('torso').set_inertia(self.nominal_torso_inertia * k_rand_mass_torso)
+
+		k_rand_mass_left_wing = np.random.normal(1, k_rand_mass)
+		self.flapper_skel.bodynode('left_wing').set_mass(self.nominal_left_wing_mass * k_rand_mass_left_wing)
+		self.flapper_skel.bodynode('left_wing').set_inertia(self.nominal_left_wing_inertia * k_rand_mass_left_wing)
+
+		k_rand_mass_right_wing = np.random.normal(1, k_rand_mass)
+		self.flapper_skel.bodynode('right_wing').set_mass(self.nominal_right_wing_mass * k_rand_mass_right_wing)
+		self.flapper_skel.bodynode('right_wing').set_inertia(self.nominal_right_wing_inertia * k_rand_mass_right_wing)
+
+		k_rand_mass_left_leading_edge = np.random.normal(1, k_rand_mass)
+		self.flapper_skel.bodynode('left_leading_edge').set_mass(self.nominal_left_leading_edge_mass * k_rand_mass_left_leading_edge)
+		self.flapper_skel.bodynode('left_leading_edge').set_inertia(self.nominal_left_leading_edge_inertia * k_rand_mass_left_leading_edge)
+
+		k_rand_mass_right_leading_edge = np.random.normal(1, k_rand_mass)
+		self.flapper_skel.bodynode('right_leading_edge').set_mass(self.nominal_right_leading_edge_mass * k_rand_mass_right_leading_edge)
+		self.flapper_skel.bodynode('right_leading_edge').set_inertia(self.nominal_right_leading_edge_inertia * k_rand_mass_right_leading_edge)
+
+		# motor trim (resistance)
+		self.left_motor.resistance = self.left_motor.config.resistance * (1+np.abs(np.random.normal(0,k_rand_motor)))
+		self.right_motor.resistance = self.right_motor.config.resistance * (1+np.abs(np.random.normal(0,k_rand_motor)))
+
+		# configure
+		self.configure_flapper()
 		return
 
 	def get_states(self):
 		self.update_body_states()
 		return self.states
 
-	def check_collision(self):
-		collided = False
-		"""
-		implementation here
-		"""
-		return collided
-
-	def get_terminal(self):
-		done = False
-		"""
-		determine if simulation has reach terminal condition
-		implementation here
-		"""
-		return done
-
-	def render(self):
-		fault = False
-		"""
-		only visualize if call this method
-		implementation here
-		"""
-		return fault
-
-	def seed(self):
-		"""
-		if there is randomness in simulation, set the random seed here
-		implementation here
-		"""
-		return
-
 	def reset(self):
-		"""
-		reset and return the states after 
-		implementation here
-		"""
 		self.configure_flapper(roll = 0/180*np.pi, pitch = 0/180*np.pi, yaw = 0/180*np.pi, x=0.0, y = 0.0, z=0.0)
 		self.left_motor.reset()
 		self.right_motor.reset()
@@ -115,10 +135,7 @@ class FWMAV:
 
 	def step(self, t, input_voltage):
 		status = 1
-		"""
-		use input to drive simulation for 1 dt step
-		implementation here
-		"""
+
 		# aero
 		self.left_wing.UpdateStates(self.flapper_skel.bodynode('torso').com_spatial_velocity()[0],
 									self.flapper_skel.bodynode('torso').com_spatial_velocity()[1],
@@ -196,7 +213,6 @@ class FWMAV:
 		self.states['body_positions'][3] = self.flapper_skel.bodynode('torso').com()[0]
 		self.states['body_positions'][4] = self.flapper_skel.bodynode('torso').com()[1]
 		self.states['body_positions'][5] = self.flapper_skel.bodynode('torso').com()[2]
-		
 
 		# body frame velocity (these tow methods are identical)
 		self.states['body_velocities'] = self.flapper_skel.bodynode('torso').com_spatial_velocity().reshape(6,1)
@@ -204,10 +220,8 @@ class FWMAV:
 		# body frame acceleration (these tow methods are identical)
 		self.states['body_accelerations'] = self.flapper_skel.bodynode('torso').com_spatial_acceleration().reshape(6,1)
 
-
 		# spatial frame velocity
 		self.states['body_spatial_velocities'] = self.flapper_skel.bodynode('torso').com_linear_velocity().reshape(3,1)
-
 
 		# spatial frame acceleration
 		self.states['body_spatial_accelerations'] = self.flapper_skel.bodynode('torso').com_linear_acceleration().reshape(3,1)
@@ -357,12 +371,9 @@ class FWMAV:
 		# self.flapper_skel.joint('left_rotate').set_actuator_type(pydart.joint.Joint.LOCKED)
 		# self.flapper_skel.joint('right_rotate').set_actuator_type(pydart.joint.Joint.LOCKED)
 		# print(self.flapper_skel.dof(9))
-		#print(self.flapper_skel.joint('left_stroke').position_lower_limit(0))
+		# print(self.flapper_skel.joint('left_stroke').position_lower_limit(0))
 		# get dof id in body skeleton
-		#print(self.flapper_skel.dof('right_stroke').id)
-
-
-
+		# print(self.flapper_skel.dof('right_stroke').id)
 
 class Actuator:
 	def __init__(self,motor_properties):
@@ -420,7 +431,6 @@ class Actuator:
 
 	def get_torque(self):
 		return self.output_torque
-
 
 	def reset(self):
 		self.inertia_torque = 0

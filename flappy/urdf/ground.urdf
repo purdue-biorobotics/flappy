@@ -21,7 +21,7 @@
         </collision>
     </link>
     <joint name="ground_joint" type="fixed">
-        <origin xyz="0 0 0" rpy="0 0 0" />
+        <origin xyz="0 0 -0.2" rpy="0 0 0" />
         <parent link="world" />
         <child link="ground_link" />
     </joint>

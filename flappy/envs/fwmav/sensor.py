@@ -44,7 +44,6 @@ class Sensor_IMU_Vicon():
 		self.vicon_x_cache_ = np.zeros([self.delay_vicon_step_.astype(int)],dtype=np.float64) + states['body_positions'][3,0]
 		self.vicon_y_cache_ = np.zeros([self.delay_vicon_step_.astype(int)],dtype=np.float64) + states['body_positions'][4,0]
 		self.vicon_z_cache_ = np.zeros([self.delay_vicon_step_.astype(int)],dtype=np.float64) + states['body_positions'][5,0]
-		print(states['body_positions'][3,0], end="\n\r")
 		self.vicon_cache_pointer = 0
 		self.vicon_update_flag_ = 0
 		self.vicon_x_old_ = 0

@@ -1,3 +1,9 @@
+##########################  FWMAV Simulation  #########################
+# Version 0.3
+# Fan Fei		Feb 2019
+# Direct motor driven flapping wing MAV simulation
+#######################################################################
+
 from setuptools import setup
 from distutils.core import Extension
 from sys import platform as _platform

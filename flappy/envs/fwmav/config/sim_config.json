@@ -5,6 +5,5 @@
 	"f_control"	: 500,
 	"f_imu"		: 1000,
 	"f_vicon"	: 200,
-	"phantom_sensor": false
-
+	"f_visual"	: 24
 }

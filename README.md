@@ -2,6 +2,7 @@
 
 Flappy Hummingbird: An Open Source Dynamic Simulation of Flapping Wing Robots and Animals
 
+This still work in progress. Full version will be released by May 20th 2019.
 
 Coding Rule:
 http://google.github.io/styleguide/cppguide.html
@@ -86,21 +87,31 @@ source /path/to/venv/bin/activate
   
 - Clone the repo and cd into it:
     ```zsh
-    https://github.com/ffnc1020/Flappy.git
-    cd Flappy
+    https://github.com/purdue-biorobotics/flappy.git
+    cd flappy
     ```
     
 - Install Flappy package
     ```zsh
     pip install -e .
     ```
-    
+
+## Environments
+### FWMAV
+Dual motor driven flapping wing robots
+#### fwmav_hover-v0
+The inputs are the thrust and torque signals, namely voltage_amplitude_ for thrust, differential_voltage_ for roll torque, mean_voltage_ for pitch torque, and split_cycle_ for yaw torque. This is mode of control is similar to helicopter or quadcopter control.
+
+#### fwmav_hover-v1
+The inputs are just two voltage signals supplied to the two motor. The control policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time.
+
 ## Learning
 We choose to use stable baselines instead of baselines as our RL library. Note that our environment still follow the specification of gym/env, so baselines can be applied to our env as well.
 
-### Testing with PID
+### Testing with Closed loop controller (PID or ARC)
 ```python
 python test.py --model_type=PID
+python test.py --model_type=ARC
 ```
 
 ### Training

@@ -14,13 +14,13 @@ class pid:
 
 class PIDController():
 	def __init__(self,dt):
-
+		self.dt_ = dt
 		self.desired_accel_x_ = 0
 		self.desired_accel_y_ = 0
 		
 		self.pos_target_x_ = 0
 		self.pos_target_y_ = 0
-		self.pos_target_z_ = 0.4
+		self.pos_target_z_ = 0.0
 
 		self.ang_ef_target_z_ = 0
 
@@ -29,7 +29,7 @@ class PIDController():
 		self.p_pos_xy_Kp_ = 7	#1m error to 0.1m/s
 
 		# z postion to velocity
-		self.p_pos_z_Kp_ = 0.4
+		self.p_pos_z_Kp_ = 5
 		# z velocity to acceleration
 		# self.p_vel_z_Kp_ = 20 # need to test
 
@@ -149,9 +149,12 @@ class PIDController():
 		self.split_cycle_ = 0
 
 		# working trim
-		self.roll_trim_ = 0.4;	#voltage
-		self.pitch_trim_ = -0.4;	#voltage
-		self.yaw_trim_ = -0.04;	#split cycle
+		self.roll_trim_ = 0.4	#voltage
+		self.pitch_trim_ = -0.4	#voltage
+		self.yaw_trim_ = -0.04	#split cycle
+		# self.roll_trim_ = 0	#voltage
+		# self.pitch_trim_ = 0	#voltage
+		# self.yaw_trim_ = 0	#split cycle
 
 		# filter
 		RC = 1/(2*np.pi*20)
@@ -172,11 +175,11 @@ class PIDController():
 		self.altitude_ = 0
 		self.velocity_z_ = 0
 		self.acceleration_z_ = 0
+		self.raw_velocity_z_old = 0
 
 
-	def get_action(self, states, dt, sensor_fusion):
-		self.dt_ = dt
-		self.sensor_read(states, sensor_fusion)
+	def get_action(self, observation):
+		self.sensor_read(observation)
 		self.controller_run()
 		self.add_trim()
 
@@ -201,57 +204,28 @@ class PIDController():
 		self.mean_voltage_ = np.clip(self.mean_voltage_ + self.pitch_trim_, -self.mean_voltage_max_, self.mean_voltage_max_)
 		self.split_cycle_ = np.clip(self.split_cycle_ + self.yaw_trim_, -self.split_cycle_max_, self.split_cycle_max_)
 
-	def sensor_read(self,states,sensor_fusion):
-		# sensor fusion with fake sensor
-		raw_pos_current_x_ = sensor_fusion.vicon_x_
-		raw_pos_current_y_ = sensor_fusion.vicon_y_
-		raw_vel_current_x_ = sensor_fusion.out_x_dot_
-		raw_vel_current_y_ = sensor_fusion.out_y_dot_
+	def sensor_read(self, observation):
+		self.vel_current_x_old_ = self.vel_current_x_
+		self.vel_current_y_old_ = self.vel_current_y_
 
-		raw_roll_angle_ = sensor_fusion.out_roll_
-		raw_pitch_angle_ = sensor_fusion.out_pitch_
-		raw_yaw_angle_ = sensor_fusion.out_yaw_
+		#updat raw observation
+		raw_pos_current_x_ = observation[9]
+		raw_pos_current_y_ = observation[10]
+		raw_vel_current_x_ = observation[12]
+		raw_vel_current_y_ = observation[13]
 
-		raw_gyro_x_ = sensor_fusion.IMU_gx_
-		raw_gyro_y_ = sensor_fusion.IMU_gy_
-		raw_gyro_z_ = sensor_fusion.IMU_gz_
-		raw_altitude_ = sensor_fusion.vicon_z_
-		raw_velocity_z_ = sensor_fusion.out_z_dot_
-		raw_acceleration_z_ = states['body_spatial_accelerations'][2,0] + np.random.normal(0,0.05)
+		R = observation[0:9]
+		[raw_roll_angle_, raw_pitch_angle_, raw_yaw_angle_] = self.rotation_to_euler_angle(R.reshape(3,3))
 
-		#direct sensor read
-		# raw_pos_current_x_ = states['body_positions'][3,0] + np.random.normal(0,0.0005)
-		# raw_pos_current_y_ = states['body_positions'][4,0] + np.random.normal(0,0.0005)
-		# raw_vel_current_x_ = states['body_spatial_velocities'][0,0] + np.random.normal(0,0.0005)
-		# raw_vel_current_y_ = states['body_spatial_velocities'][1,0] + np.random.normal(0,0.0005)
-		
-		# raw_roll_angle_ = states['body_positions'][0,0] + np.random.normal(0,2/180*np.pi)
-		# raw_pitch_angle_ = states['body_positions'][1,0] + np.random.normal(0,2/180*np.pi)
-		# raw_yaw_angle_ = states['body_positions'][2,0] + np.random.normal(0,2/180*np.pi)
-		
-		# raw_gyro_x_ = states['body_velocities'][0,0] + np.random.normal(0.01,5/180*np.pi)
-		# raw_gyro_y_ = states['body_velocities'][1,0] + np.random.normal(0.01,5/180*np.pi)
-		# raw_gyro_z_ = states['body_velocities'][2,0] + np.random.normal(0.01,5/180*np.pi)
-		# raw_altitude_ = states['body_positions'][5,0] + np.random.normal(0,0.0005)
-		# raw_velocity_z_ = states['body_spatial_velocities'][2,0] + np.random.normal(0,0.005)
-		# raw_acceleration_z_ = states['body_spatial_accelerations'][2,0] + np.random.normal(0,0.05)
+		raw_gyro_x_ = observation[15]
+		raw_gyro_y_ = observation[16]
+		raw_gyro_z_ = observation[17]
+		raw_altitude_ = observation[11]
+		raw_velocity_z_ = observation[14]
+		raw_acceleration_z_ = (raw_velocity_z_ - self.raw_velocity_z_old)/self.dt_
+		self.raw_velocity_z_old = raw_velocity_z_
 
-		# raw_pos_current_x_ = states['body_positions'][3,0]
-		# raw_pos_current_y_ = states['body_positions'][4,0]
-		# raw_vel_current_x_ = states['body_spatial_velocities'][0,0]
-		# raw_vel_current_y_ = states['body_spatial_velocities'][1,0]
-		# raw_roll_angle_ = states['body_positions'][0,0]
-		# raw_pitch_angle_ = states['body_positions'][1,0]
-		# raw_yaw_angle_ = states['body_positions'][2,0]
-		# raw_gyro_x_ = states['body_velocities'][0,0]
-		# raw_gyro_y_ = states['body_velocities'][1,0]
-		# raw_gyro_z_ = states['body_velocities'][2,0]
-		# raw_altitude_ = states['body_positions'][5,0]
-		# raw_velocity_z_ = states['body_spatial_velocities'][2,0]
-		# raw_acceleration_z_ = states['body_spatial_accelerations'][2,0]
-
-
-		# filter z with 20 Hz low pass
+		# filter with low pass
 		self.pos_current_x_ = self.pos_current_x_*(1-self.alpha_xyz) + raw_pos_current_x_*self.alpha_xyz
 		self.pos_current_y_ = self.pos_current_y_*(1-self.alpha_xyz) + raw_pos_current_y_*self.alpha_xyz
 		self.vel_current_x_ = self.vel_current_x_*(1-self.alpha_xyz) + raw_vel_current_x_*self.alpha_xyz
@@ -266,20 +240,6 @@ class PIDController():
 		self.velocity_z_ = self.velocity_z_*(1-self.alpha_xyz) + raw_velocity_z_*self.alpha_xyz
 		self.acceleration_z_ = self.acceleration_z_*(1-self.alpha_xyz) + raw_acceleration_z_*self.alpha_xyz
 
-		# self.pos_current_x_ = raw_pos_current_x_
-		# self.pos_current_y_ = raw_pos_current_y_
-		# self.vel_current_x_ = raw_vel_current_x_
-		# self.vel_current_y_ = raw_vel_current_y_
-		# self.roll_angle_ = raw_roll_angle_
-		# self.pitch_angle_ = raw_pitch_angle_
-		# self.yaw_angle_ = raw_yaw_angle_
-		# self.gyro_x_ = raw_gyro_x_
-		# self.gyro_y_ = raw_gyro_y_
-		# self.gyro_z_ = raw_gyro_z_
-		# self.altitude_ = raw_altitude_
-		# self.velocity_z_ = raw_velocity_z_
-		# self.acceleration_z_ = raw_acceleration_z_
-
 		self.sin_roll_ = np.sin(self.roll_angle_)
 		self.cos_roll_ = np.cos(self.roll_angle_)
 		self.sin_pitch_ = np.sin(self.pitch_angle_)
@@ -287,7 +247,9 @@ class PIDController():
 		self.sin_yaw_ = np.sin(self.yaw_angle_)
 		self.cos_yaw_ = np.cos(self.yaw_angle_)
 
-
+		# derivatives
+		self.acc_current_x_ = (self.vel_current_x_ - self.vel_current_x_old_)/self.dt_
+		self.acc_current_y_ = (self.vel_current_y_ - self.vel_current_y_old_)/self.dt_
 
 	def xy_control(self):
 		# desired acceleration to velocity
@@ -457,4 +419,9 @@ class PIDController():
 
 		return bf
 
+	def rotation_to_euler_angle(self,R):
+		roll = np.arctan2(R[2,1],R[2,2])
+		pitch = np.arcsin(-R[2, 0])
+		yaw = np.arctan2(R[1,0],R[0,0])
+		return roll, pitch, yaw
 
