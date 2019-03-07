@@ -2,7 +2,7 @@
 
 Flappy Hummingbird: An Open Source Dynamic Simulation of Flapping Wing Robots and Animals
 
-This still work in progress. Full version will be released by May 20th 2019 and presented at ICRA2019.
+This is still work in progress. Full version will be released by May 20th 2019 and presented at ICRA2019.
 
 Coding Rule:
 http://google.github.io/styleguide/cppguide.html
@@ -100,6 +100,11 @@ source /path/to/venv/bin/activate
 ## Environments
 ### FWMAV
 Dual motor driven flapping wing robots based on the Purdue Hummingbird robot.
+
+The control of this vehicle is a difficult problem. We challenge developers, researchers, scientists and roboticists to come up with better control algorithm, either feedback controller or learning based controller.
+
+Two default working controller are included: a cascading PID controller (control structure similar to ArduPilot) and an Adaptive Robust Controller (ARC). These two controller can be evaluated in the provided test script.
+
 #### 'fwmav_hover-v0'
 This environment is for controlling the dual wing flappin wing robot.
 
