@@ -29,7 +29,7 @@ class Simulation:
 		self.dt_imu = 1/sim_config['f_imu']
 		self.dt_vicon = 1/sim_config['f_vicon']
 		self.phantom_sensor = False
-		self.randomize = False
+		self.randomize = True
 		self.fps = 24
 
 		self.config = sim_config
@@ -39,7 +39,7 @@ class Simulation:
 
 		# add flapper in world, flapper skeleton wrapped in FWMAV and configured in FWMAV
 		# 0 = no trim, 1 = with trim
-		self.flapper1 = FWMAV(mav_config_list[1], self.world, self.dt_d)		#2 is latest trim with base, 4 is without base
+		self.flapper1 = FWMAV(mav_config_list[0], self.world, self.dt_d)		#2 is latest trim with base, 4 is without base
 		self.states = self.flapper1.get_states()
 
 		# initialize glut window

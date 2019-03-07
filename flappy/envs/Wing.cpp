@@ -1,26 +1,37 @@
 /*************************  FWMAV Simulation  *************************
-* Version 0.3.1
+* Version 0.3.2
 * Fan Fei		Jan 2018
-* FWMAV simulation with dual motor driven robotic flapper
-* PID controller using split cycle mechanism
+* Flapping wing quasi-steady aerodynamics
 ***********************************************************************
 */
 
 #include "Wing.hpp"
 
-FWMAV::Wing::Wing(int wing_index, double shoulder_width, double stroke_plane_offset)
+FWMAV::Wing::Wing(int wing_index,
+				  double wing_length,
+				  double mean_chord,
+				  double r33,
+				  double r22,
+				  double r11,
+				  double r00,
+				  double z_cp2,
+				  double z_cp1,
+				  double z_cp0,
+				  double z_rd,
+				  double shoulder_width,
+				  double stroke_plane_offset)
 {
 	air_density_ = 1.18009482370369;
-	wing_length_ = 0.07;
-	mean_chord_ = 0.021212121212121;
-	r33_ = 0.205833311654341;
-	r22_ = 0.284203623407408;
-	r11_ = 0.450820740740741;
-	r00_ = 0.999407407407407;
-	z_cp2_ = 0.246352600140835;
-	z_cp1_ = 0.415846717980795;
-	z_cp0_ = 1.028078968449933;
-	z_rd_ = 1.174547978303502;
+	wing_length_ = wing_length;
+	mean_chord_ =mean_chord;
+	r33_ = r33;
+	r22_ = r22;
+	r11_ = r11;
+	r00_ = r00;
+	z_cp2_ = z_cp2;
+	z_cp1_ = z_cp1;
+	z_cp0_ = z_cp0;
+	z_rd_ = z_rd;
 	sign_ = pow(-1,wing_index);
 
 	// body_velocity_roll_ = body_velocity_roll;

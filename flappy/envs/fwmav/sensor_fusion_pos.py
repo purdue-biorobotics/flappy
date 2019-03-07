@@ -348,29 +348,19 @@ class SensorFusion():
 		R_[2][1] = 2 * (q2 * q3 - q0 * q1)
 		R_[2][2] = q0**2 - q1**2 - q2**2 + q3**2
 
-		self.x_pri_[0][
-			0] = self.x_po_[0][0] - 0.5 * self.x_po_[1][0] * self.x_po_[4][0] * self.dt_s_ - 0.5 * self.x_po_[2][0] * self.x_po_[5][0] * self.dt_s_ - 0.5 * self.x_po_[3][0] * self.x_po_[6][0] * self.dt_s_
-		self.x_pri_[1][
-			0] = self.x_po_[1][0] + 0.5 * self.x_po_[0][0] * self.x_po_[4][0] * self.dt_s_ - 0.5 * self.x_po_[3][0] * self.x_po_[5][0] * self.dt_s_ + 0.5 * self.x_po_[2][0] * self.x_po_[6][0] * self.dt_s_
-		self.x_pri_[2][
-			0] = self.x_po_[2][0] + 0.5 * self.x_po_[3][0] * self.x_po_[4][0] * self.dt_s_ + 0.5 * self.x_po_[0][0] * self.x_po_[5][0] * self.dt_s_ - 0.5 * self.x_po_[1][0] * self.x_po_[6][0] * self.dt_s_
-		self.x_pri_[3][
-			0] = self.x_po_[3][0] - 0.5 * self.x_po_[2][0] * self.x_po_[4][0] * self.dt_s_ + 0.5 * self.x_po_[1][0] * self.x_po_[5][0] * self.dt_s_ + 0.5 * self.x_po_[0][0] * self.x_po_[6][0] * self.dt_s_
+		self.x_pri_[0][0] = self.x_po_[0][0] - 0.5 * self.x_po_[1][0] * self.x_po_[4][0] * self.dt_s_ - 0.5 * self.x_po_[2][0] * self.x_po_[5][0] * self.dt_s_ - 0.5 * self.x_po_[3][0] * self.x_po_[6][0] * self.dt_s_
+		self.x_pri_[1][0] = self.x_po_[1][0] + 0.5 * self.x_po_[0][0] * self.x_po_[4][0] * self.dt_s_ - 0.5 * self.x_po_[3][0] * self.x_po_[5][0] * self.dt_s_ + 0.5 * self.x_po_[2][0] * self.x_po_[6][0] * self.dt_s_
+		self.x_pri_[2][0] = self.x_po_[2][0] + 0.5 * self.x_po_[3][0] * self.x_po_[4][0] * self.dt_s_ + 0.5 * self.x_po_[0][0] * self.x_po_[5][0] * self.dt_s_ - 0.5 * self.x_po_[1][0] * self.x_po_[6][0] * self.dt_s_
+		self.x_pri_[3][0] = self.x_po_[3][0] - 0.5 * self.x_po_[2][0] * self.x_po_[4][0] * self.dt_s_ + 0.5 * self.x_po_[1][0] * self.x_po_[5][0] * self.dt_s_ + 0.5 * self.x_po_[0][0] * self.x_po_[6][0] * self.dt_s_
 		# angular velocity
-		self.x_pri_[4][0] = self.x_po_[4][0] + (
-			self.I1_ * self.x_po_[5][0] * self.x_po_[6][0]) * self.dt_s_
-		self.x_pri_[5][0] = self.x_po_[5][0] + (
-			self.I2_ * self.x_po_[4][0] * self.x_po_[6][0]) * self.dt_s_
-		self.x_pri_[6][0] = self.x_po_[6][0] + (
-			self.I3_ * self.x_po_[4][0] * self.x_po_[5][0]) * self.dt_s_
+		self.x_pri_[4][0] = self.x_po_[4][0] + (self.I1_ * self.x_po_[5][0] * self.x_po_[6][0]) * self.dt_s_
+		self.x_pri_[5][0] = self.x_po_[5][0] + (self.I2_ * self.x_po_[4][0] * self.x_po_[6][0]) * self.dt_s_
+		self.x_pri_[6][0] = self.x_po_[6][0] + (self.I3_ * self.x_po_[4][0] * self.x_po_[5][0]) * self.dt_s_
 		# linear velocity
 		self.p_ddot = np.matmul(np.transpose(R_), self.accel_)
-		self.x_pri_[10][
-			0] = self.x_po_[10][0] + self.p_ddot[0][0] * self.dt_s_  # + ((self.x_po_[0][0]**2 + self.x_po_[1][0]**2 - self.x_po_[2][0]**2 - self.x_po_[3][0]**2)*self.accel_[0][0] + 2*(self.x_po_[1][0]*self.x_po_[2][0] - self.x_po_[0][0]*self.x_po_[3][0])*self.accel_[1][0] + 2*(self.x_po_[0][0]*self.x_po_[2][0] + self.x_po_[1][0]*self.x_po_[3][0])*self.accel_[2][0])*self.dt_s_
-		self.x_pri_[11][
-			0] = self.x_po_[11][0] + self.p_ddot[1][0] * self.dt_s_  # + (2*(self.x_po_[1][0]*self.x_po_[2][0] + self.x_po_[0][0]*self.x_po_[3][0])*self.accel_[0][0] + (self.x_po_[0][0]**2 - self.x_po_[1][0]**2 + self.x_po_[2][0]**2 - self.x_po_[3][0]**2)*self.accel_[1][0] + 2*(self.x_po_[2][0]*self.x_po_[3][0] - self.x_po_[0][0]*self.x_po_[1][0])*self.accel_[2][0])*self.dt_s_
-		self.x_pri_[12][
-			0] = self.x_po_[12][0] + self.p_ddot[2][0] * self.dt_s_  # + (2*(self.x_po_[1][0]*self.x_po_[3][0] - self.x_po_[0][0]*self.x_po_[2][0])*self.accel_[0][0] + 2*(self.x_po_[0][0]*self.x_po_[1][0] + self.x_po_[2][0]*self.x_po_[3][0])*self.accel_[1][0] + (self.x_po_[0][0]**2 - self.x_po_[1][0]**2 - self.x_po_[2][0]**2 + self.x_po_[3][0]**2)*self.accel_[2][0])*self.dt_s_
+		self.x_pri_[10][0] = self.x_po_[10][0] + self.p_ddot[0][0] * self.dt_s_  # + ((self.x_po_[0][0]**2 + self.x_po_[1][0]**2 - self.x_po_[2][0]**2 - self.x_po_[3][0]**2)*self.accel_[0][0] + 2*(self.x_po_[1][0]*self.x_po_[2][0] - self.x_po_[0][0]*self.x_po_[3][0])*self.accel_[1][0] + 2*(self.x_po_[0][0]*self.x_po_[2][0] + self.x_po_[1][0]*self.x_po_[3][0])*self.accel_[2][0])*self.dt_s_
+		self.x_pri_[11][0] = self.x_po_[11][0] + self.p_ddot[1][0] * self.dt_s_  # + (2*(self.x_po_[1][0]*self.x_po_[2][0] + self.x_po_[0][0]*self.x_po_[3][0])*self.accel_[0][0] + (self.x_po_[0][0]**2 - self.x_po_[1][0]**2 + self.x_po_[2][0]**2 - self.x_po_[3][0]**2)*self.accel_[1][0] + 2*(self.x_po_[2][0]*self.x_po_[3][0] - self.x_po_[0][0]*self.x_po_[1][0])*self.accel_[2][0])*self.dt_s_
+		self.x_pri_[12][0] = self.x_po_[12][0] + self.p_ddot[2][0] * self.dt_s_  # + (2*(self.x_po_[1][0]*self.x_po_[3][0] - self.x_po_[0][0]*self.x_po_[2][0])*self.accel_[0][0] + 2*(self.x_po_[0][0]*self.x_po_[1][0] + self.x_po_[2][0]*self.x_po_[3][0])*self.accel_[1][0] + (self.x_po_[0][0]**2 - self.x_po_[1][0]**2 - self.x_po_[2][0]**2 + self.x_po_[3][0]**2)*self.accel_[2][0])*self.dt_s_
 		# position
 		self.x_pri_[7][0] = self.x_po_[7][0] + self.x_po_[10][0] * self.dt_s_
 		self.x_pri_[8][0] = self.x_po_[8][0] + self.x_po_[11][0] * self.dt_s_

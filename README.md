@@ -2,10 +2,11 @@
 
 Flappy Hummingbird: An Open Source Dynamic Simulation of Flapping Wing Robots and Animals
 
-This still work in progress. Full version will be released by May 20th 2019.
+This still work in progress. Full version will be released by May 20th 2019 and presented at ICRA2019.
 
 Coding Rule:
 http://google.github.io/styleguide/cppguide.html
+
 https://google.github.io/styleguide/pyguide.html
 
 ## Publication
@@ -98,12 +99,18 @@ source /path/to/venv/bin/activate
 
 ## Environments
 ### FWMAV
-Dual motor driven flapping wing robots
-#### fwmav_hover-v0
+Dual motor driven flapping wing robots based on the Purdue Hummingbird robot.
+#### 'fwmav_hover-v0'
+This environment is for controlling the dual wing flappin wing robot.
+
 The inputs are the thrust and torque signals, namely voltage_amplitude_ for thrust, differential_voltage_ for roll torque, mean_voltage_ for pitch torque, and split_cycle_ for yaw torque. This is mode of control is similar to helicopter or quadcopter control.
 
-#### fwmav_hover-v1
-The inputs are just two voltage signals supplied to the two motor. The control policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time.
+The input action is in [-1,1] and will be scaled to their approprate range. If implementing a feedback controleller, the input should be scaled to [-1,1]. See the baseline PID controller and test example for detail.
+
+#### 'fwmav_hover-v1'
+This environment is for controlling the dual wing flappin wing robot.
+
+In this case, the inputs are just two voltage signals supplied to the two motor. The control policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time.
 
 ## Learning
 We choose to use stable baselines instead of baselines as our RL library. Note that our environment still follow the specification of gym/env, so baselines can be applied to our env as well.

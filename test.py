@@ -40,12 +40,15 @@ class LazyModel:
 		self.observation_bound = env.observation_bound
 		if model_type == 'PID':
 			self.policy = PIDController(env.sim.dt_c)
-		else:
+		elif model_type == 'ARC':
 			self.policy = ARCController(env.sim.dt_c)
+		else:
+			raise Exception('Error')
 
 	def predict(self, obs):
 		action = self.policy.get_action(obs[0]*self.observation_bound)
 		# scale action from [action_lb, action_ub] to [-1,1]
+		# since baseline does not support asymmetric action space
 		normalized_action = (action-self.action_lb)/(self.action_ub - self.action_lb)*2 - 1
 		action = np.array([normalized_action])
 		return action, None
@@ -70,6 +73,7 @@ def main(args):
 		model = LazyModel(env.envs[0],args.model_type)
 
 	obs = env.reset()
+
 	while True:
 		if env.envs[0].is_sim_on == False:
 			env.envs[0].gui.cv.wait()

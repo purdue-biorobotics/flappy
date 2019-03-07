@@ -148,13 +148,13 @@ class PIDController():
 		self.mean_voltage_ = 0
 		self.split_cycle_ = 0
 
-		# working trim
-		self.roll_trim_ = 0.4	#voltage
-		self.pitch_trim_ = -0.4	#voltage
-		self.yaw_trim_ = -0.04	#split cycle
-		# self.roll_trim_ = 0	#voltage
-		# self.pitch_trim_ = 0	#voltage
-		# self.yaw_trim_ = 0	#split cycle
+		# working trim for flapper_sc_trim in mav_config_list.json
+		# self.roll_trim_ = 0.4	#voltage
+		# self.pitch_trim_ = -0.4	#voltage
+		# self.yaw_trim_ = -0.04	#split cycle
+		self.roll_trim_ = 0	#voltage
+		self.pitch_trim_ = 0	#voltage
+		self.yaw_trim_ = 0	#split cycle
 
 		# filter
 		RC = 1/(2*np.pi*20)

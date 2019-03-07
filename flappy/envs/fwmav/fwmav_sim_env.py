@@ -25,7 +25,7 @@ class FWMAVSimEnv(gym.Env):
 		with open('./flappy/envs/fwmav/config/mav_config_list.json') as file:
 			mav_config_list = json.load(file)
 		self.sim = Simulation(mav_config_list, sim_config)
-		ground_skel = self.sim.world.add_skeleton('./flappy/urdf/ground.urdf')
+		# ground_skel = self.sim.world.add_skeleton('./flappy/urdf/ground.urdf')
 
 		self.observation = np.zeros([18], dtype=np.float64)
 		self.observation_bound = np.array([
@@ -54,6 +54,8 @@ class FWMAVSimEnv(gym.Env):
 		self.sim.randomize = randomize_sim
 		self.sim.phantom_sensor = phantom_sensor
 		self.sim.sensor_fusion.phantom = phantom_sensor
+		if randomize_sim == False:
+			self.sim.flapper1.nominal()
 
 	def enable_visualization(self):
 		self.is_visual_on = True
@@ -73,14 +75,14 @@ class FWMAVSimEnv(gym.Env):
 
 	@property
 	def action_space(self):
-		return Box(np.array([0.0, -3.0, -3.5, -0.15]), np.array([18.0, 3.0, 3.5, 0.15]))
+		return Box(np.array([-1, -1, -1, -1]), np.array([1, 1, 1, 1]))
 
 	def reset(self):
 		if self.random_init:
 			rpy_limit = 0.785398 	# 45 deg
 			pqr_limit = 3.14159		# 180 deg/s
-			xyz_limit = 0.1			# 10 cm
-			xyz_dot_limit = 0.1		# 10cm/s
+			xyz_limit = 0.2			# 10 cm
+			xyz_dot_limit = 0.2		# 10cm/s
 		else:
 			rpy_limit = 0.0 	# 45 deg
 			pqr_limit = 0.0		# 180 deg/s
@@ -115,6 +117,7 @@ class FWMAVSimEnv(gym.Env):
 		
 	def step(self, action):
 		# scale action from [-1,1] to [action_lb, action_ub]
+		# since baseline does not support asymmetric action space
 		scaled_action = (action+1)*0.5*(self.action_ub-self.action_lb)+self.action_lb
 		scaled_action = np.clip(scaled_action, self.action_lb, self.action_ub)
 
@@ -126,6 +129,10 @@ class FWMAVSimEnv(gym.Env):
 		voltage_diff = total_action[1]
 		voltage_bias = total_action[2]
 		split_cycle = total_action[3]
+		# max_voltage = action[0]
+		# voltage_diff = action[1]
+		# voltage_bias = action[2]
+		# split_cycle = action[3]
 		input_voltage = np.zeros([2],dtype=np.float64)		
 		input_voltage[0] = self.generate_control_signal(self.sim.flapper1.frequency, max_voltage, voltage_diff, voltage_bias, -split_cycle, self.sim.world.time(), 0)
 		input_voltage[1] = self.generate_control_signal(self.sim.flapper1.frequency, max_voltage, -voltage_diff, voltage_bias, split_cycle, self.sim.world.time(), 0)
@@ -223,7 +230,7 @@ class FWMAVSimEnv(gym.Env):
 	def get_terminal(self):
 		if self.sim.check_collision():
 			return True
-		if self.sim.world.time() > 20:
+		if self.sim.world.time() > 2:
 			return True
 
 		flapper1_states = self.sim.states

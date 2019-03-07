@@ -1,8 +1,7 @@
 /*************************  FWMAV Simulation  *************************
-* Version 0.3.1
+* Version 0.3.2
 * Fan Fei		Jan 2018
-* FWMAV simulation with dual motor driven robotic flapper
-* PID controller using split cycle mechanism
+* Flapping wing quasi-steady aerodynamics
 ***********************************************************************
 */
 
@@ -11,7 +10,19 @@
 namespace FWMAV{
 class Wing {
 public:
-	Wing(int wing_index, double shoulder_width, double stroke_plane_offset);
+	Wing(int wing_index,
+				  double wing_length,
+				  double mean_chord,
+				  double r33,
+				  double r22,
+				  double r11,
+				  double r00,
+				  double z_cp2,
+				  double z_cp1,
+				  double z_cp0,
+				  double z_rd,
+				  double shoulder_width,
+				  double stroke_plane_offset);
 	virtual ~Wing();
 
 	void doNothing();

@@ -97,8 +97,8 @@ class Wing(_object):
     __getattr__ = lambda self, name: _swig_getattr(self, Wing, name)
     __repr__ = _swig_repr
 
-    def __init__(self, wing_index, shoulder_width, stroke_plane_offset):
-        this = _Wing.new_Wing(wing_index, shoulder_width, stroke_plane_offset)
+    def __init__(self, wing_index, wing_length, mean_chord, r33, r22, r11, r00, z_cp2, z_cp1, z_cp0, z_rd, shoulder_width, stroke_plane_offset):
+        this = _Wing.new_Wing(wing_index, wing_length, mean_chord, r33, r22, r11, r00, z_cp2, z_cp1, z_cp0, z_rd, shoulder_width, stroke_plane_offset)
         try:
             self.this.append(this)
         except Exception:

@@ -1,3 +1,9 @@
+##########################  FWMAV Simulation  #########################
+# Version 0.3
+# Fan Fei       Feb 2019
+# Direct motor driven flapping wing MAV simulation
+#######################################################################
+
 import gym
 import flappy
 
@@ -11,18 +17,18 @@ import argparse
 import importlib
 
 
-def make_env(env_id, rank, seed=0):
+def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
     def _init():
         env = gym.make(env_id)
+        env.config(random_init, randomize_sim, phantom_sensor)
         if rank == 0:
             env.enable_visualization()
             env.enable_print()
         env.seed(seed + rank)
         return env
 
-    #set_global_seeds(seed)
+    # set_global_seeds(seed)
     return _init
-
 
 def main(args):
 

@@ -34,8 +34,35 @@ class FWMAV:
 		self.left_stroke_mid = config.left_stroke_mid
 		self.right_stroke_mid = config.right_stroke_mid
 		
-		self.left_wing = Wing(0, config.left_shoulder_width, config.stroke_plane_offset)
-		self.right_wing = Wing(1, config.right_shoulder_width, config.stroke_plane_offset)
+		self.left_wing = Wing(0,
+							  config.wing_length,
+							  config.mean_chord,
+							  config.r33,
+							  config.r22,
+							  config.r11,
+							  config.r00,
+							  config.z_cp2,
+							  config.z_cp1,
+							  config.z_cp0,
+							  config.z_rd,
+							  config.left_shoulder_width,
+							  config.stroke_plane_offset)
+		self.right_wing = Wing(1,
+							  config.wing_length,
+							  config.mean_chord,
+							  config.r33,
+							  config.r22,
+							  config.r11,
+							  config.r00,
+							  config.z_cp2,
+							  config.z_cp1,
+							  config.z_cp0,
+							  config.z_rd,
+							  config.right_shoulder_width,
+							  config.stroke_plane_offset)
+
+		# self.left_wing = Wing(0, config.left_shoulder_width, config.stroke_plane_offset)
+		# self.right_wing = Wing(1, config.right_shoulder_width, config.stroke_plane_offset)
 		self.add_flapper(world, z=0.0)
 
 		self.nominal_torso_mass = self.flapper_skel.bodynode('torso').mass()
@@ -115,6 +142,34 @@ class FWMAV:
 		# motor trim (resistance)
 		self.left_motor.resistance = self.left_motor.config.resistance * (1+np.abs(np.random.normal(0,k_rand_motor)))
 		self.right_motor.resistance = self.right_motor.config.resistance * (1+np.abs(np.random.normal(0,k_rand_motor)))
+
+		# configure
+		self.configure_flapper()
+		return
+
+	def nominal(self):
+		self.left_spring_stiffness = self.config.left_spring_stiffness
+		self.right_spring_stiffness = self.config.right_spring_stiffness
+		self.left_rotate_lower = self.config.left_rotate_lower
+		self.left_rotate_upper = self.config.left_rotate_upper
+		self.right_rotate_lower = self.config.right_rotate_lower
+		self.right_rotate_upper = self.config.right_rotate_upper
+		self.left_stroke_mid = self.config.left_stroke_mid
+		self.right_stroke_mid = self.config.right_stroke_mid
+
+		self.flapper_skel.bodynode('torso').set_mass(self.nominal_torso_mass)
+		self.flapper_skel.bodynode('torso').set_inertia(self.nominal_torso_inertia)
+		self.flapper_skel.bodynode('left_wing').set_mass(self.nominal_left_wing_mass)
+		self.flapper_skel.bodynode('left_wing').set_inertia(self.nominal_left_wing_inertia)
+		self.flapper_skel.bodynode('right_wing').set_mass(self.nominal_right_wing_mass)
+		self.flapper_skel.bodynode('right_wing').set_inertia(self.nominal_right_wing_inertia)
+		self.flapper_skel.bodynode('left_leading_edge').set_mass(self.nominal_left_leading_edge_mass)
+		self.flapper_skel.bodynode('left_leading_edge').set_inertia(self.nominal_left_leading_edge_inertia)
+		self.flapper_skel.bodynode('right_leading_edge').set_mass(self.nominal_right_leading_edge_mass)
+		self.flapper_skel.bodynode('right_leading_edge').set_inertia(self.nominal_right_leading_edge_inertia)
+
+		self.left_motor.resistance = self.left_motor.config.resistance
+		self.right_motor.resistance = self.right_motor.config.resistance
 
 		# configure
 		self.configure_flapper()
