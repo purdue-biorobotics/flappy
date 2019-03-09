@@ -110,22 +110,22 @@ The inputs are the thrust and torque signals, namely voltage_amplitude_ for thru
 The input action is in [-1,1] and will be scaled to their approprate range. If implementing a feedback controleller, the input should be scaled to [-1,1]. See the baseline PID controller and test example for detail.
 
 ##### Testing with Closed loop controller (PID or ARC)
-```python
-python test.py ---model_type=PID
-python test.py ---model_type=ARC
+```zsh
+python test.py --model_type=PID
+python test.py --model_type=ARC
 ```
 
 ##### Learning
 We choose to use stable baselines instead of baselines as our RL library. Note that our environment still follow the specification of gym/env, so baselines can be applied to our env as well.
 
 ###### Training
-```python
-python train.py ---model_type=PPO2 ---model_path=ppo2_mlp ---policy_type=MlpPolicy ---n_cpu=12 ---time_step=100000
+```zsh
+python train.py --model_type=PPO2 --model_path=ppo2_mlp --policy_type=MlpPolicy --n_cpu=12 --time_step=100000
 ```
 
 ###### Testing with trained model
-```python
-python test.py ---model_type=PPO2 ---model_path=ppo2_mlp ---policy_type=MlpPolicy
+```zsh
+python test.py --model_type=PPO2 --model_path=ppo2_mlp --policy_type=MlpPolicy
 ```
 
 #### 'fwmav_hover-v1'
