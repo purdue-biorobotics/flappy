@@ -2,12 +2,9 @@
 
 Flappy Hummingbird: An Open Source Dynamic Simulation of Flapping Wing Robots and Animals
 
-This is still work in progress. Full version will be released by May 20th 2019 and presented at ICRA2019.
+This still work in progress. Full version will be released by May 20th 2019 and presented at ICRA2019.
 
-Coding Rule:
-http://google.github.io/styleguide/cppguide.html
-
-https://google.github.io/styleguide/pyguide.html
+![](demo.gif)
 
 ## Publication
 
@@ -112,41 +109,36 @@ The inputs are the thrust and torque signals, namely voltage_amplitude_ for thru
 
 The input action is in [-1,1] and will be scaled to their approprate range. If implementing a feedback controleller, the input should be scaled to [-1,1]. See the baseline PID controller and test example for detail.
 
+##### Testing with Closed loop controller (PID or ARC)
+```python
+python test.py ---model_type=PID
+python test.py ---model_type=ARC
+```
+
+##### Learning
+We choose to use stable baselines instead of baselines as our RL library. Note that our environment still follow the specification of gym/env, so baselines can be applied to our env as well.
+
+###### Training
+```python
+python train.py ---model_type=PPO2 ---model_path=ppo2_mlp ---policy_type=MlpPolicy ---n_cpu=12 ---time_step=100000
+```
+
+###### Testing with trained model
+```python
+python test.py ---model_type=PPO2 ---model_path=ppo2_mlp ---policy_type=MlpPolicy
+```
+
 #### 'fwmav_hover-v1'
 This environment is for controlling the dual wing flappin wing robot.
 
 In this case, the inputs are just two voltage signals supplied to the two motor. The control policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time.
 
-## Learning
-We choose to use stable baselines instead of baselines as our RL library. Note that our environment still follow the specification of gym/env, so baselines can be applied to our env as well.
-
-### Testing with Closed loop controller (PID or ARC)
-```python
-python test.py --model_type=PID
-python test.py --model_type=ARC
-```
-
-### Training
-```python
-python train.py --model_type=PPO2 --model_path=ppo2_mlp --policy_type=MlpPolicy --n_cpu=12 --time_step=100000
-```
-
-### Testing with PID
-```python
-python test.py --model_type=PID
-```
-
-### Testing with trained model
-```python
-python test.py --model_type=PPO2 --model_path=ppo2_mlp --policy_type=MlpPolicy
-```
 
 ## Contributor
-
 Fan Fei, Ruoyu Wu, Jian Zhang
 
 ## License
+MIT
 
 ## Acknowledments
 
-![](demo.gif)
