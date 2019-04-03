@@ -98,14 +98,14 @@ source /path/to/venv/bin/activate
 ### FWMAV
 Dual motor driven flapping wing robots based on the Purdue Hummingbird robot.
 
-The control of this vehicle is a difficult problem. We challenge developers, researchers, scientists and roboticists to come up with better control algorithm, either feedback controller or learning based controller.
+The control of this vehicle is a difficult problem. We challenge developers, researchers, scientists and roboticists to come up with better control algorithms, either feedback controller or learning based controller.
 
 Two default working controller are included: a cascading PID controller (control structure similar to ArduPilot) and an Adaptive Robust Controller (ARC). These two controller can be evaluated in the provided test script.
 
 #### 'fwmav_hover-v0'
 This environment is for controlling the dual wing flappin wing robot.
 
-The inputs are the thrust and torque signals, namely voltage_amplitude_ for thrust, differential_voltage_ for roll torque, mean_voltage_ for pitch torque, and split_cycle_ for yaw torque. This is mode of control is similar to helicopter or quadcopter control.
+The inputs are the thrust and torque signals, namely voltage_amplitude_ for thrust, differential_voltage_ for roll torque, mean_voltage_ for pitch torque, and split_cycle_ for yaw torque. This mode of control is similar to helicopter or quadcopter control.
 
 The input action is in [-1,1] and will be scaled to their approprate range. If implementing a feedback controleller, the input should be scaled to [-1,1]. See the baseline PID controller and test example for detail.
 
@@ -131,7 +131,8 @@ python test.py --model_type=PPO2 --model_path=ppo2_mlp --policy_type=MlpPolicy
 #### 'fwmav_hover-v1'
 This environment is for controlling the dual wing flappin wing robot.
 
-In this case, the inputs are just two voltage signals supplied to the two motor. The control policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time.
+In this case, the inputs are just two voltage signals supplied to the two motor. The control policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time. Without specifiing the wing kinematics allows the ability to generate torque and force in arbitrary directions.
+
 
 
 ## Contributor
