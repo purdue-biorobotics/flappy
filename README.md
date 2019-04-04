@@ -111,8 +111,7 @@ The four inputs are the thrust and torque signals:
     * mean_voltage_ [-3.5,3.5] volt for pitch torque
     * split_cycle_ [-0.15,0.15] for yaw torque
 
-This mode of control is similar to helicopter or quadcopter control. The sinusodial voltage signal drives the wing back and forth is generated using [wing beat modulation][doman2010wingbeat].
-    [doman2010wingbeat]: https://arc.aiaa.org/doi/10.2514/1.47146
+This mode of control is similar to helicopter or quadcopter control. The sinusodial voltage signal drives the wing back and forth is generated using [wing beat modulation](https://arc.aiaa.org/doi/10.2514/1.47146).
 
 The input actions are in [-1,1] and will be scaled to their approprate range. If implementing a feedback controleller, the input should be scaled to [-1,1]. See the baseline PID controller and test example for detail.
 
