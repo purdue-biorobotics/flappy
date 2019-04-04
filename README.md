@@ -105,9 +105,16 @@ Two default working controller are included: a cascading PID controller (control
 #### 'fwmav_hover-v0'
 This environment is for controlling the dual wing flappin wing robot.
 
-The inputs are the thrust and torque signals, namely voltage_amplitude_ for thrust, differential_voltage_ for roll torque, mean_voltage_ for pitch torque, and split_cycle_ for yaw torque. This mode of control is similar to helicopter or quadcopter control.
+The four inputs are the thrust and torque signals:
+    * voltage_amplitude_ [0,18] volt for thrust
+    * differential_voltage_ [-3,3] volt for roll torque
+    * mean_voltage_ [-3.5,3.5] volt for pitch torque
+    * split_cycle_ [-0.15,0.15] for yaw torque
 
-The input action is in [-1,1] and will be scaled to their approprate range. If implementing a feedback controleller, the input should be scaled to [-1,1]. See the baseline PID controller and test example for detail.
+This mode of control is similar to helicopter or quadcopter control. The sinusodial voltage signal drives the wing back and forth is generated using [wing beat modulation][doman2010wingbeat].
+    [doman2010wingbeat]: https://arc.aiaa.org/doi/10.2514/1.47146
+
+The input actions are in [-1,1] and will be scaled to their approprate range. If implementing a feedback controleller, the input should be scaled to [-1,1]. See the baseline PID controller and test example for detail.
 
 ##### Testing with Closed loop controller (PID or ARC)
 ```zsh
@@ -129,10 +136,17 @@ python test.py --model_type=PPO2 --model_path=ppo2_mlp --policy_type=MlpPolicy
 ```
 
 #### 'fwmav_hover-v1'
-This environment is for controlling the dual wing flappin wing robot.
+This environment similar to `'fwmav_hover-v0'`, but without using [wing beat modulation][doman2010wingbeat].
 
-In this case, the inputs are just two voltage signals supplied to the two motor. The control policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time. Without specifiing the wing kinematics allows the ability to generate torque and force in arbitrary directions.
+An example using PID is in `test_simple.py`, this example still uses the same PID controller and wing beat modulation. But the input to the environment are just two voltage signals ([-18,18] volt) supplied to the two motor.
 
+To develop a new control policy, the policy should try to generate sinusoidal signals near 34Hz to drive the wings and implement control at the same time. Without specifiing the wing kinematics allows the ability to generate torque and force in arbitrary directions.
+
+##### Testing with Closed loop controller (PID or ARC)
+```zsh
+python test_simple.py --model_type=PID
+python test_simple.py --model_type=ARC
+```
 
 
 ## Contributor
