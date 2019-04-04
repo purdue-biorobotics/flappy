@@ -85,7 +85,7 @@ source /path/to/venv/bin/activate
   
 - Clone the repo and cd into it:
     ```zsh
-    https://github.com/purdue-biorobotics/flappy.git
+    git clone https://github.com/purdue-biorobotics/flappy.git
     cd flappy
     ```
     
