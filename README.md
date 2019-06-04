@@ -156,3 +156,15 @@ MIT
 
 ## Acknowledments
 
+
+## Troubleshooting
+If you get any of the followin errors, try installation from source procedure mentioned in [document](https://pydart2.readthedocs.io/en/latest/install.html)
+
+```bash
+ImportError: cannot import name 'pydart2_api'
+```
+or
+
+```bash
+AttributeError: module 'pydart2' has no attribute 'World'
+```
