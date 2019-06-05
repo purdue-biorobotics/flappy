@@ -24,18 +24,22 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-Flappy requires python3 with the development headers. You'll also need some other system packages. DART is required as simulation engine (and we use pydart2 as interface). They can be installed as follows
+Flappy requires python3 with the development headers. You'll also need some other system packages. [DART <= v6.8.2](https://github.com/dartsim/dart/tree/release-6.8) (note this links redirects to release 6.8 branch) is required as simulation engine (and we use pydart2 as interface). They can be installed as follows
 
 #### Ubuntu
 
 ```zsh
 # install system packages
 sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev swig python3-pip python3-pyqt4 python3-pyqt4.qtopengl
+```
+###### install DartSim v6.8.2
 
-# install dart
-sudo apt-add-repository ppa:dartsim
-sudo apt-get update
-sudo apt-get install libdart6-all-dev
+Follow the [source installation instructions](http://dartsim.github.io/install_dart_on_ubuntu.html#install-dart-from-source). 
+
+Finally, to update runtime libraries locations so that flappy-simulator can find dart:
+
+```zsh
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib:/usr/lib:/usr/local/lib
 ```
 
 Please refer the [official DART installation document](https://github.com/dartsim/dart/wiki/Installation) when you have problems. 
@@ -64,12 +68,8 @@ source /path/to/venv/bin/activate
 ```
 
 ### Installation
-- Pydart2 is a python binding to DART. 
+- Pydart2 is a python binding to DART. Source installation is required. Refer to [source installation instructions](https://pydart2.readthedocs.io/en/latest/install.html#install-from-source-code).
 
-    ```zsh
-    pip install pydart2
-    ```
-    Please refer to [document](https://pydart2.readthedocs.io/en/latest/install.html) when you have problems.
 
 - [Tensorflow](https://github.com/tensorflow/tensorflow) is needed for the usage of neural network. If you want to make use of your GPU, please install the tensorflow with gpu
 
@@ -156,3 +156,15 @@ MIT
 
 ## Acknowledments
 
+
+## Troubleshooting
+If you get any of the followin errors, try installation from source procedure mentioned in [document](https://pydart2.readthedocs.io/en/latest/install.html)
+
+```bash
+ImportError: cannot import name 'pydart2_api'
+```
+or
+
+```bash
+AttributeError: module 'pydart2' has no attribute 'World'
+```
