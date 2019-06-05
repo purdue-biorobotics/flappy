@@ -2,4 +2,4 @@ pydart2
 tensorflow-gpu
 numpy
 matplotlib
-
+PyQt5
