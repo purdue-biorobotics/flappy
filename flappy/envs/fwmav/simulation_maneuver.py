@@ -9,12 +9,12 @@
 import numpy as np
 import random
 from fwmav import FWMAV
-import pydart2 as pydart
+from flappy.envs.fwmav import pydart2 as pydart
 import threading
 import click
 import time
-from pydart2.gui.glut.window import GLUTWindow
-from pydart2.gui.trackball import Trackball
+from flappy.envs.fwmav.pydart2.gui.glut.window import GLUTWindow
+from flappy.envs.fwmav.pydart2.gui.trackball import Trackball
 import OpenGL.GLUT as GLUT
 
 #from controller_no_base import PIDController

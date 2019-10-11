@@ -4,10 +4,9 @@
 # Direct motor driven flapping wing MAV simulation
 #######################################################################
 
-import pydart2 as pydart
-from pydart2.gui.glut.window import GLUTWindow
-from pydart2.gui.trackball import Trackball
-
+from flappy.envs.fwmav import pydart2 as pydart
+from flappy.envs.fwmav.pydart2.gui.glut.window import GLUTWindow
+from flappy.envs.fwmav.pydart2.gui.trackball import Trackball
 from threading import Thread, Condition
 import OpenGL.GLUT as GLUT
 import sys

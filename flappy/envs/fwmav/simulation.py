@@ -6,7 +6,7 @@
 
 import numpy as np
 import random
-import pydart2 as pydart
+from flappy.envs.fwmav import pydart2 as pydart
 import threading
 import click
 import time
