@@ -19,7 +19,15 @@ import time
 import argparse
 import importlib
 import numpy as np
-
+'''
+Contructing the environment our agent is going ti interact with.
+env_id: Environment type to construct.
+rank: TODO
+seed: The seed used to generate a random environment. 
+random_init: Enable random initalization.
+randomize_sim: Configure the environment to be randomized.
+phantom_sensor: TODO
+'''
 def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
 	def _init():
 		env = gym.make(env_id)
@@ -32,6 +40,19 @@ def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, pha
 
 	# set_global_seeds(seed)
 	return _init
+'''
+The lazy model class. 
+
+Properties
+---------
+
+action_lb: TODO
+action_ub: TODO
+observation_bound: TODO
+policy: The policy used for decision making.
+
+
+'''
 
 class LazyModel:
 	def __init__(self,env,model_type):
@@ -44,7 +65,7 @@ class LazyModel:
 			self.policy = ARCController(env.sim.dt_c)
 		else:
 			raise Exception('Error')
-
+	#Predict based on policy and observation.
 	def predict(self, obs):
 		action = self.policy.get_action(obs[0]*self.observation_bound)
 		# scale action from [action_lb, action_ub] to [-1,1]
