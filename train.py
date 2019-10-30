@@ -16,7 +16,14 @@ import time
 import argparse
 import importlib
 
-
+'''
+Creates the environment state for training.
+env_id: Environment ID for the training.
+rank:
+seed: Seed for the randomization algorithm in the environment.
+random_init: Used in configuring the env object.
+randomize_sim: Used in configuring the env object. States whether the simulator
+'''
 def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
     def _init():
         env = gym.make(env_id)
