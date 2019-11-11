@@ -19,7 +19,7 @@ import importlib
 '''
 Creates the environment state for training.
 env_id: Environment ID for the training.
-rank: TODO
+rank: It is added to the seed while randomly generating the environment. 
 seed: Seed for the randomization algorithm in the environment.
 random_init: Used in configuring the env object.
 randomize_sim: Used in configuring the env object. States whether the simulator

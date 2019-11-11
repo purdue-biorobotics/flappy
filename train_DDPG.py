@@ -20,12 +20,18 @@ import time
 import argparse
 import importlib
 
+'''
+DDPG: Deep Deterministic Policy Gradients.
 
+Class for representing ddpg policy. Used in Q-Learning.
+
+FeedForwardPolicy: A policy that passes the controlling signal from the source to external environment.
+'''
 class MyDDPGPolicy(FeedForwardPolicy):
 	def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
 		super(MyDDPGPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
 										act_fun=tf.nn.tanh, layers=[32, 32], feature_extraction="mlp", **_kwargs)
-
+	#Returns the q value given action and observation.
 	def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
 		critic_layers = [128, 128]
 
@@ -46,13 +52,21 @@ class MyDDPGPolicy(FeedForwardPolicy):
 					qf_h = tf.concat([qf_h, action], axis=-1)
 
 			qvalue_fn = tf.layers.dense(qf_h, 1, name=scope,
-										kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
-																						 maxval=3e-3))
+			kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
 
 			self.qvalue_fn = qvalue_fn
 			self._qvalue = qvalue_fn[:, 0]
 		return self.qvalue_fn
-		
+
+'''
+Configures and returns the environment given the arguments.
+env_id: Environment type to construct.
+rank: Rank is added to seed while generating the environment. Helps to give different seeds in multiprocessing.
+seed: The seed used to generate a random environment. 
+random_init: Enable random initalization.
+randomize_sim: Configure the environment to be randomized.
+phantom_sensor: Used in env config.
+'''
 def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
 	def _init():
 		env = gym.make(env_id)
@@ -67,13 +81,15 @@ def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, pha
 	return _init
 
 def main(args):
-
+	#Starting the timer to record the operation time.
 	start = time.time()
 
 	env_id = 'fwmav_hover-v0'
+	#Creating a vector of size 1 which only has the environment.
 	env = DummyVecEnv([make_env(env_id, 0)])
 	# env = SubprocVecEnv([make_env(env_id, i) for i in range(args.n_cpu)])
 
+	# -1 argument means the shape will be found automatically.
 	n_actions = env.action_space.shape[-1]
 	param_noise = None
 	action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
@@ -100,6 +116,7 @@ def main(args):
 	model.learn(total_timesteps=args.time_step)
 	model.save(args.model_path)
 
+	#End timer.
 	end = time.time()
 	print("Time used: ", end - start)
 

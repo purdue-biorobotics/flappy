@@ -19,7 +19,15 @@ import time
 import argparse
 import importlib
 import numpy as np
-
+'''
+Configures and returns the environment.
+env_id: Environment type to construct.
+rank: Rank is added to seed while generating the environment. Helps to give different seeds in multiprocessing.
+seed: The seed used to generate a random environment. 
+random_init: Enable random initalization.
+randomize_sim: Configure the environment to be randomized.
+phantom_sensor: Used in env config.
+'''
 def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
 	def _init():
 		env = gym.make(env_id)
@@ -33,6 +41,9 @@ def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, pha
 	# set_global_seeds(seed)
 	return _init
 
+'''
+The model used in testing. 
+'''
 class LazyModel:
 	def __init__(self,env,model_type):
 		self.action_lb = env.action_lb

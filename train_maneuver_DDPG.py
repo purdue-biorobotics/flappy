@@ -20,7 +20,13 @@ import time
 import argparse
 import importlib
 
+'''
+DDPG: Deep Deterministic Policy Gradients.
 
+Class for representing ddpg policy. Used in Q-Learning.
+
+FeedForwardPolicy: A policy that passes the controlling signal from the source to external environment.
+'''
 class MyDDPGPolicy(FeedForwardPolicy):
 	def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
 		super(MyDDPGPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
@@ -52,7 +58,17 @@ class MyDDPGPolicy(FeedForwardPolicy):
 			self.qvalue_fn = qvalue_fn
 			self._qvalue = qvalue_fn[:, 0]
 		return self.qvalue_fn
+
 		
+'''
+Configures and returns the environment given the arguments.
+env_id: Environment type to construct.
+rank: Rank is added to seed while generating the environment. Helps to give different seeds in multiprocessing.
+seed: The seed used to generate a random environment. 
+random_init: Enable random initalization.
+randomize_sim: Configure the environment to be randomized.
+phantom_sensor: Used in env config.
+'''
 def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
 	def _init():
 		env = gym.make(env_id)
@@ -71,9 +87,11 @@ def main(args):
 	start = time.time()
 
 	env_id = 'fwmav_maneuver-v0'
+	#Making a vector with size 1 that only has the environment.
 	env = DummyVecEnv([make_env(env_id, 0)])
 	# env = SubprocVecEnv([make_env(env_id, i) for i in range(args.n_cpu)])
 
+	#When the argument is -1, the shape will be found automatically.
 	n_actions = env.action_space.shape[-1]
 	param_noise = None
 	action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))

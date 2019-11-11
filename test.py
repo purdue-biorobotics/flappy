@@ -22,11 +22,11 @@ import numpy as np
 '''
 Contructing the environment our agent is going ti interact with.
 env_id: Environment type to construct.
-rank: TODO
+rank: Rank is added to seed while generating the environment. Helps to give different seeds in multiprocessing.
 seed: The seed used to generate a random environment. 
 random_init: Enable random initalization.
 randomize_sim: Configure the environment to be randomized.
-phantom_sensor: TODO
+phantom_sensor: Used in env config.
 '''
 def make_env(env_id, rank, seed=0, random_init = True, randomize_sim = True, phantom_sensor = False):
 	def _init():
@@ -46,9 +46,9 @@ The lazy model class.
 Properties
 ---------
 
-action_lb: TODO
-action_ub: TODO
-observation_bound: TODO
+action_lb: Lower bound for the action.
+action_ub: Upper bounf for the action.
+observation_bound: The range of the possible observations.
 policy: The policy used for decision making.
 
 
