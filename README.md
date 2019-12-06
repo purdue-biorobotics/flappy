@@ -31,13 +31,19 @@ Flappy requires python3 with the development headers. You'll also need some othe
 ```zsh
 # install system packages
 sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev swig python3-pip python3-pyqt4 python3-pyqt4.qtopengl
+pip install click
 
-# install dart
-sudo apt-add-repository ppa:dartsim
-sudo apt-get update
-sudo apt-get install libdart6-all-dev
-```
-
+# Please install DART from source
+[Install DART from soucrce](https://dartsim.github.io/install_dart_on_ubuntu.html)
+* Please install all the dependencies so there will less likely to have errors when installing the repository
+* Make sure you install version 6.2.1 by changing 
+	```zsh
+	git checkout tags/v6.8.2
+	```
+	to	
+	```zsh
+	git checkout tags/v6.2.1
+	```
 Please refer the [official DART installation document](https://github.com/dartsim/dart/wiki/Installation) when you have problems. 
 
 #### Mac OS X(not finished)
@@ -80,16 +86,18 @@ source /path/to/venv/bin/activate
     ```zsh
     pip install pydart2
     ```
+    If this does not work please try to install from source.
     Please refer to [document](https://pydart2.readthedocs.io/en/latest/install.html) when you have problems.
 
 - [Tensorflow](https://github.com/tensorflow/tensorflow) is needed for the usage of neural network. If you want to make use of your GPU, please install the tensorflow with gpu
+- Please make sure you install tensorflow version < 2.0
 
     ```zsh
     pip install tensorflow-gpu # if you have a CUDA-compatible gpu and proper drivers
     ```
     else
     ```zsh
-    pip install tensorflow
+    pip install tensorflow==1.9
     ```
     please refer to [TensorFlow installation guide](https://www.tensorflow.org/install/)
     for more details. 
@@ -105,6 +113,14 @@ source /path/to/venv/bin/activate
     pip install -e .
     ```
 
+- Lack dependency
+   * Please try to install any dependency if there is an error related to that library during the installation process.
+   ```zhs
+   	pip [Dependency lack of]
+	or
+	apt-get install [Dependency lack of]
+   ```
+   
 ## Environments
 ### FWMAV
 Dual motor driven flapping wing robots based on the Purdue Hummingbird robot.
