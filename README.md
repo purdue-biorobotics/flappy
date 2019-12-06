@@ -49,6 +49,19 @@ brew install cmake openmpi
 # install dart
 brew install dartsim
 ```
+### Alternative installation methods
+1. Pydart2 source code included in our project. (No installation required) 
+	```zsh
+	https://github.com/purdue-biorobotics/flappy
+	```
+2. Pydart2 source code not included in our project. (Installation required, which is not a pleasant experience.) 
+	```zsh
+	Please continue your steps here
+	```
+3. Docker (If you do not have access to recommanded OS environment) 
+	```zsh
+	https://github.com/chen3082/docker
+	```
 
 ### Virtual environment
 From the general python package sanity perspective, it is a good idea to use virtual environments (virtualenvs) to make sure packages from different projects do not interfere with each other. Creation of virtual environments is done by executing the command [venv](https://docs.python.org/3/library/venv.html#module-venv):
