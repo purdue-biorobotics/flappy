@@ -112,9 +112,9 @@ source /path/to/venv/bin/activate
 - Lack dependency
    * Please try to install any dependency if there is an error related to that library during the installation process.
    ```zhs
-   	pip [Dependency lack of]
-	or
-	apt-get install [Dependency lack of]
+   pip [Dependency lack of]
+   or
+   apt-get install [Dependency lack of]
    ```
    
 ## Environments
@@ -172,7 +172,7 @@ python test_simple.py --model_type=ARC
 
 
 ## Contributor
-Fan Fei, Ruoyu Wu, Jian Zhang
+Fan Fei, Ruoyu Wu, Jian Zhang, Yunlei Yan, Yuan-Cheng Chen
 
 ## License
 MIT
