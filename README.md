@@ -28,11 +28,10 @@ Flappy requires python3 with the development headers. You'll also need some othe
 
 #### Ubuntu
 
-	```zsh
 	# install system packages
 	sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev swig python3-pip python3-pyqt4 python3-	pyqt4.qtopengl
 	pip install click
-	```
+	
 ### Install DART from source
 [Install DART from soucrce](https://dartsim.github.io/install_dart_on_ubuntu.html)
 * Please install all the dependencies so there will less likely to have errors when installing the repository
