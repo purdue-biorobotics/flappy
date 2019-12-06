@@ -55,9 +55,7 @@ brew install dartsim
 	https://github.com/chen3082/flappy
 	```
 2. Pydart2 source code not included in our project. (Installation required, which is not a pleasant experience.) 
-	```zsh
-	Please continue your steps here
-	```
+	* Please continue your steps here
 3. Docker (If you do not have access to recommanded OS environment) 
 	```zsh
 	https://github.com/chen3082/docker
