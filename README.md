@@ -1,27 +1,3 @@
-def init_glut(self,window_size = (800,600)):
-  self.glutwindow = GLUTWindow(self.world, "FWMAV")
-  GLUT.glutInit(())
-  GLUT.glutInitDisplayMode(GLUT.GLUT_RGBA |
-         GLUT.GLUT_DOUBLE |
-         GLUT.GLUT_MULTISAMPLE |
-         GLUT.GLUT_ALPHA |
-         GLUT.GLUT_DEPTH)
-  GLUT.glutInitWindowSize(*window_size)
-  GLUT.glutInitWindowPosition(0, 0)
-  self.glutwindow.window = GLUT.glutCreateWindow(self.glutwindow.title)
-  self.glutwindow.initGL(*window_size)
-  self.camera_theta = 75
-  self.camera_phi = 90
-  self.camera_horizontal = 0.0
-  self.camera_vertical = -0.25
-  self.camera_depth = -1.5
-  self.camera_angle_increment = 5
-  self.camera_position_increment = 0.05
-  self.update_camera()
-  #self.glutwindow.scene.add_camera(Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]),"Camera Z up close")
-  #self.glutwindow.scene.set_camera(2)
-  self.glutwindow.scene.resize(*window_size)
-  self.glutwindow.drawGL()
 # Flappy
 
 Flappy Hummingbird: An Open Source Dynamic Simulation of Flapping Wing Robots and Animals
