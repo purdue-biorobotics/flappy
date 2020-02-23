@@ -49,7 +49,7 @@ class Simulation:
 		self.states = self.flapper1.get_states()
 
 		# initialize glut window
-		# self.init_glut((800, 600))
+		self.init_glut((800, 600))
 		
 		self.reset() # call reset before simulation
 
@@ -168,7 +168,20 @@ class Simulation:
 		self.sensor = Sensor_IMU_Vicon(self.dt_imu, self.dt_vicon, self.states)
 		self.sensor_fusion = SensorFusion(self.dt_s, self.states, self.phantom_sensor)
 		self.radonmize()
+		self.world.reset()
+		self.flapper1.reset()
+		self.paused = False
+		self.visulization = True
+		self.next_visulizaiton_time = 1/self.fps + time.time()
+		self.next_control_time = 0.0
+		self.elapse_time = 0		
 
+		self.reached = 0
+		self.start_time = time.time()
+
+		self.states = self.get_state()
+		print("Simulation reset", end="\n\r")
+		return self.states
 		print("Simulation reset", end="\n\r")
 		return self.states
 
@@ -402,38 +415,37 @@ class Simulation:
 		print('pydart initialization OK')
 		self.world = MyWorld(self.dt)
 
+	def init_glut(self,window_size = (800,600)):
+		self.glutwindow = GLUTWindow(self.world, "FWMAV")
+		GLUT.glutInit(())
+		GLUT.glutInitDisplayMode(GLUT.GLUT_RGBA |
+								 GLUT.GLUT_DOUBLE |
+								 GLUT.GLUT_MULTISAMPLE |
+								 GLUT.GLUT_ALPHA |
+								 GLUT.GLUT_DEPTH)
+		GLUT.glutInitWindowSize(*window_size)
+		GLUT.glutInitWindowPosition(0, 0)
+		self.glutwindow.window = GLUT.glutCreateWindow(self.glutwindow.title)
+		self.glutwindow.initGL(*window_size)
+		self.camera_theta = 75#, for mirror 85
+		self.camera_phi = 90#, for mirror -75
+		self.camera_horizontal = 0.0
+		self.camera_vertical = -0.25
+		self.camera_depth = -1.5
+		self.camera_angle_increment = 5
+		self.camera_position_increment = 0.05
+		self.update_camera()
+		# self.glutwindow.scene.add_camera(Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]),"Camera Z up close")
+		# self.glutwindow.scene.set_camera(2)
+		self.glutwindow.scene.resize(*window_size)
+		self.glutwindow.drawGL()
 
-	# def init_glut(self,window_size = (800,600)):
-	# 	self.glutwindow = GLUTWindow(self.world, "FWMAV")
-	# 	GLUT.glutInit(())
-	# 	GLUT.glutInitDisplayMode(GLUT.GLUT_RGBA |
-	# 							 GLUT.GLUT_DOUBLE |
-	# 							 GLUT.GLUT_MULTISAMPLE |
-	# 							 GLUT.GLUT_ALPHA |
-	# 							 GLUT.GLUT_DEPTH)
-	# 	GLUT.glutInitWindowSize(*window_size)
-	# 	GLUT.glutInitWindowPosition(0, 0)
-	# 	self.glutwindow.window = GLUT.glutCreateWindow(self.glutwindow.title)
-	# 	self.glutwindow.initGL(*window_size)
-	# 	self.camera_theta = 75#, for mirror 85
-	# 	self.camera_phi = 135#, for mirror -75
-	# 	self.camera_horizontal = 0.0
-	# 	self.camera_vertical = -0.25
-	# 	self.camera_depth = -1.25
-	# 	self.camera_angle_increment = 5
-	# 	self.camera_position_increment = 0.05
-	# 	self.update_camera()
-	# 	#self.glutwindow.scene.add_camera(Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]),"Camera Z up close")
-	# 	#self.glutwindow.scene.set_camera(2)
-	# 	self.glutwindow.scene.resize(*window_size)
-	# 	self.glutwindow.drawGL()
-
-	# def update_camera(self):
-	# 	self.glutwindow.scene.replace_camera(0,Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]))
-	# 	self.glutwindow.scene.set_camera(0)
-	# 	self.glutwindow.drawGL()
-	# 	print("theta = %.4f, phi = %.4f" % (self.camera_theta, self.camera_phi))
-	# 	print("\r")
+	def update_camera(self):
+		self.glutwindow.scene.replace_camera(0,Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]))
+		self.glutwindow.scene.set_camera(1)
+		self.glutwindow.drawGL()
+		print("theta = %.4f, phi = %.4f" % (self.camera_theta, self.camera_phi))
+		print("\r")
 
 	# # def run(self,policy = None):
 	# 	keylistener = KeyListener(1,'Key Thread', 1)
