@@ -1,11 +1,14 @@
 ##########################  FWMAV Simulation  #########################
-# Version 0.3
-# Fan Fei		Feb 2019
-# Direct motor driven flapping wing MAV simulation
+# Version 0.1
+# Fan Fei		Feb 2018
+# FWMAV simulation with dual motor driven robotic flapper
+# PID controller using split cycle mechanism
 #######################################################################
+
 
 import numpy as np
 import random
+from fwmav import FWMAV
 import pydart2 as pydart
 import threading
 import click
@@ -14,162 +17,331 @@ from pydart2.gui.glut.window import GLUTWindow
 from pydart2.gui.trackball import Trackball
 import OpenGL.GLUT as GLUT
 
-from Flappy.envs.fwmav import FWMAV
-
-# controllers
-from Flappy.envs.controllers.pid_controller import PIDController
-
-# sensors
-from Flappy.envs.sensor import Sensor_IMU_Vicon
-from Flappy.envs.sensor_fusion_pos import SensorFusion
-
-# GUI
-from Flappy.envs.MyGLUTWindow import GUI
+#from controller_no_base import PIDController
+#from arc_xy_arc_z_no_base import PIDController
+#from controller import PIDController
+#from pid_xy_arc_z_maneuver import PIDController
+from controller_maneuver import PIDController
+#from arc_xy_arc_z import PIDController
 
 class Simulation:
+	metadata = {
+		'render.modes' : ['human', 'rgb_array'],
+		'video.frames_per_second' : 20
+	}
 	def __init__(self, mav_config_list, sim_config):
+		self.num_mav = len(mav_config_list)
 		self.dt = 1/sim_config['f_sim']
-		self.dt_d = 1/sim_config['f_driver']
 		self.dt_c = 1/sim_config['f_control']
-		self.dt_s = 1/sim_config['f_sensor']
-		self.dt_imu = 1/sim_config['f_imu']
-		self.dt_vicon = 1/sim_config['f_vicon']
-		self.phantom_sensor = sim_config['phantom_sensor']
 		self.fps = 24
-		self.sim_on = False
+		
+		self.observation = np.zeros([18],dtype=np.float64)
+		self.reward = 0
+		self.done = False
+
+		self.upside_down = 0 #zt
+
+		self.reached = 0
 
 		self.config = sim_config
 		
 		# initialize pydart world and create ground
 		self.init_world()
-
 		# add flapper in world, flapper skeleton wrapped in FWMAV and configured in FWMAV
 		# 0 = no trim, 1 = with trim
-		self.flapper1 = FWMAV(mav_config_list[6], self.world, self.dt_d)		#2 is latest trim with base, 4 is without base
+		self.flapper1 = FWMAV(mav_config_list[6], self.world)		#2 is latest trim with base, 4 is without base, 6 is with small base
 		self.states = self.flapper1.get_states()
+		# self.ground_skel = self.world.add_skeleton('./urdf/ground.urdf')
 
 		# initialize glut window
 		self.init_glut((800, 600))
-		
+		self.seed() # set random seed
 		self.reset() # call reset before simulation
 
-		# # initialize output data
-		# self.data={}
-		# self.data['t']=[]
-		# self.data['left_FN']=[]
-		# self.data['left_stroke']=[]
-		# self.data['left_rotate']=[]
-		# self.data['left_spanCoP']=[]
-		# self.data['left_chordCoP']=[]
-		# self.data['left_M_aero']=[]
-		# self.data['left_M_rd']=[]
-		# self.data['right_FN']=[]
-		# self.data['right_stroke']=[]
-		# self.data['right_rotate']=[]
-		# self.data['right_spanCoP']=[]
-		# self.data['right_chordCoP']=[]
-		# self.data['right_M_aero']=[]
-		# self.data['right_M_rd']=[]
-		# self.data['motor_torque']=[]
-		# self.data['magnetic_torque']=[]
-		# self.data['inertia_torque']=[]
-		# self.data['damping_torque']=[]
-		# self.data['friction_torque']=[]
-		# self.data['back_EMF']=[]
-		# self.data['current']=[]
-		# self.data['max_voltage']=[]
-		# self.data['voltage_diff']=[]
-		# self.data['voltage_bias']=[]
-		# self.data['split_cycle']=[]
-		# self.data['left_voltage']=[]
-		# self.data['right_voltage']=[]
-		# self.data['roll']=[]
-		# self.data['pitch']=[]
-		# self.data['yaw']=[]
-		# self.data['p']=[]
-		# self.data['q']=[]
-		# self.data['r']=[]
-		# self.data['x']=[]
-		# self.data['y']=[]
-		# self.data['z']=[]
-		# self.data['x_dot']=[]
-		# self.data['y_dot']=[]
-		# self.data['z_dot']=[]
-		# self.data['x_ddot']=[]
-		# self.data['y_ddot']=[]
-		# self.data['z_ddot']=[]
-		# self.data['vicon_roll']=[]
-		# self.data['vicon_pitch']=[]
-		# self.data['vicon_yaw']=[]
-		# self.data['vicon_x']=[]
-		# self.data['vicon_y']=[]
-		# self.data['vicon_z']=[]
-		# self.data['vicon_x_dot']=[]
-		# self.data['vicon_y_dot']=[]
-		# self.data['vicon_z_dot']=[]
-		# self.data['fuse_roll']=[]
-		# self.data['fuse_pitch']=[]
-		# self.data['fuse_yaw']=[]
-		# self.data['fuse_x']=[]
-		# self.data['fuse_y']=[]
-		# self.data['fuse_z']=[]
-		# self.data['fuse_x_dot']=[]
-		# self.data['fuse_y_dot']=[]
-		# self.data['fuse_z_dot']=[]
-		# self.data['gx']=[]
-		# self.data['gy']=[]
-		# self.data['gz']=[]
-		# self.data['ax']=[]
-		# self.data['ay']=[]
-		# self.data['az']=[]
-		# self.data['fuse_x_ddot']=[]
-		# self.data['fuse_y_ddot']=[]
-		# self.data['fuse_z_ddot']=[]
+		# initialize output data
+		self.data={}
+		self.data['t']=[]
+		self.data['left_FN']=[]
+		self.data['left_stroke']=[]
+		self.data['left_rotate']=[]
+		self.data['left_spanCoP']=[]
+		self.data['left_chordCoP']=[]
+		self.data['left_M_aero']=[]
+		self.data['left_M_rd']=[]
+		self.data['right_FN']=[]
+		self.data['right_stroke']=[]
+		self.data['right_rotate']=[]
+		self.data['right_spanCoP']=[]
+		self.data['right_chordCoP']=[]
+		self.data['right_M_aero']=[]
+		self.data['right_M_rd']=[]
+		self.data['motor_torque']=[]
+		self.data['magnetic_torque']=[]
+		self.data['inertia_torque']=[]
+		self.data['damping_torque']=[]
+		self.data['friction_torque']=[]
+		self.data['back_EMF']=[]
+		self.data['current']=[]
+		self.data['max_voltage']=[]
+		self.data['voltage_diff']=[]
+		self.data['voltage_bias']=[]
+		self.data['split_cycle']=[]
+		self.data['left_voltage']=[]
+		self.data['right_voltage']=[]
+		self.data['z']=[]
+		self.data['z_dot']=[]
+		self.data['z_ddot']=[]
+		self.data['roll']=[]
+		self.data['pitch']=[]
+		self.data['yaw']=[]
+		self.data['x']=[]
+		self.data['y']=[]
 
-	def enable_viz(self):
-		self.win = GUI(self)
-		self.win.start()
+		self.total_action_lb = np.array([0, -3, -3.5, -0.15])
+		self.total_action_ub = np.array([18.0, 3, 3.5, 0.15])
+
+		self.normalized_action_old = np.array([0, 0, 0, 0])
+
 
 	def update_state(self):
 		self.states = self.flapper1.get_states()
 
 	def get_state(self):
-		return self.states
+		state = self.states
+		return state
+
+	def get_observation(self):
+		# observations are the following
+		# rotation matrix
+		# positions
+		# linear velocities
+		# angular velocities
+		
+		observation = np.zeros([18],dtype=np.float64)
+		# get full states
+		flapper1_states = self.states
+		# create rotation matrix
+		roll_angle = flapper1_states['body_positions'][0]
+		pitch_angle = flapper1_states['body_positions'][1]
+		yaw_angle = flapper1_states['body_positions'][2]
+
+		# wrap yaw error 180
+		# print('yaw_error in observation')
+		# print(yaw_error)
+
+
+		R = self.euler_2_R(roll_angle, pitch_angle, yaw_angle)
+		observation[0:9] = R.reshape(-1)
+		# R_ = self.flapper1.flapper_skel.bodynode('torso').world_transform()
+		# print(R)
+		# print(R_)
+
+		# other states
+		observation[9] = flapper1_states['body_positions'][3]	# special x
+		observation[10] = flapper1_states['body_positions'][4]	# special y
+		observation[11] = flapper1_states['body_positions'][5]	# special z
+		observation[12] = flapper1_states['body_spatial_velocities'][0]	# spatial x_dot
+		observation[13] = flapper1_states['body_spatial_velocities'][1]	# spatial y_dot
+		observation[14] = flapper1_states['body_spatial_velocities'][2]	# spatial z_dot
+		observation[15] = flapper1_states['body_velocities'][0]	# p
+		observation[16] = flapper1_states['body_velocities'][1]	# q
+		observation[17] = flapper1_states['body_velocities'][2]	# r
+
+		return observation
+
+	def get_reward(self, action):
+		reward = 0
+
+		flapper1_states = self.states
+
+		position = flapper1_states['body_positions'][3:6]
+		position_target = np.array([[0.0], [0.0], [0.5]])
+		position_error = position_target - position
+		
+		angular_position = flapper1_states['body_positions'][0:3]
+		angular_position_target = np.array([[0.0], [0.0], [0.0]])
+		angular_position_error = angular_position_target - angular_position
+
+		# wrap 180
+		# if (angular_position_error[2] > 3*np.pi or angular_position_error[2] < -3*np.pi):
+		# 	angular_position_error[2] = np.fmod(angular_position_error[2],2*np.pi)
+		# if (angular_position_error[2] > np.pi):
+		# 	angular_position_error[2] = angular_position_error[2] - 2*np.pi
+		# if (angular_position_error[2] < - np.pi):
+		# 	angular_position_error[2] = angular_position_error[2] + 2*np.pi
+
+		linear_velocity = flapper1_states['body_spatial_velocities']
+		angular_velocity =  flapper1_states['body_velocities'][0:3]
+
+		# roll = self.states['body_positions'][0]
+		# pitch = self.states['body_positions'][1]
+		# yaw = self.states['body_positions'][2]
+		# x = self.states['body_positions'][3]
+		# y = self.states['body_positions'][4]
+		# z = self.states['body_positions'][5]
+		# distance =((x+0.35)**2 + y**2 + z**2)**0.5
+
+		normalized_action = action/(self.total_action_ub - self.total_action_lb)*2
+		normalized_action[0] = (action[0] - self.total_action_lb[0])/(self.total_action_ub[0] - self.total_action_lb[0])
+		# print('normalized_action:')
+		# print(normalized_action)
+		# the change of control as part of the cost
+		d_normalized_action = normalized_action - self.normalized_action_old
+		self.normalized_action_old = normalized_action
+
+		control_cost = 1e-2*np.sum(np.square(normalized_action))
+		d_control_cost = 1*np.sum(np.square(d_normalized_action))
+		# if distance < 0.075 and abs(yaw-np.pi)<0.5:	# 0.5rad = 29deg
+		# 	control_cost = 1e-2*np.sum(np.square(action))
+
+		#control_cost = 1e-3*np.sum(np.square(action))
+		position_cost_raw = np.linalg.norm(position_error)
+		angular_position_cost = np.linalg.norm(angular_position_error)
+		velocity_cost_raw = np.linalg.norm(linear_velocity)
+		angular_velocity_cost_raw = np.linalg.norm(angular_velocity)
+
+		#stability_cost = 4e-1*position_cost + 6e-2*angular_position_cost + 5e-2*velocity_cots + 1e-3*angular_velocity_cost		
+		#cost = (control_cost + d_control_cost + stability_cost)*3 # 5 is tight, good for position control, 3 is looser
+		
+		# body x axis projection along X axis
+		R = self.flapper1.flapper_skel.bodynode('torso').world_transform()
+		i_hat = R[0:3,0]
+		j_hat = R[0:3,1]
+		k_hat = R[0:3,2]
+		x_projection = np.dot(i_hat,np.array([1,0,0]))
+		y_projection = np.dot(k_hat,np.array([0,1,0]))
+		z_projection = np.dot(k_hat,np.array([0,0,1]))
+		# print("z_projection = %.5f" % z_projection, end="\n\r")	
+		#print("x_projection = %.5f" % x_projection, end="\n\r")	
+		#print("y_projection = %.5f" % y_projection, end="\n\r")	
+		reward_proj = -10 * abs(x_projection) + y_projection
+		if z_projection < -0.8:
+			self.upside_down = 1		
+
+		stage_flag = self.upside_down
+
+		k_ep_cost = 100
+		k_omega_cost = 100
+		#k_z_drift_cost = 1000
+
+		position_cost = 1/(position_cost_raw**2 + 1)
+		angular_velocity_cost = 1/(angular_velocity_cost_raw**2 + 1)
+
+		stability_cost = k_ep_cost*position_cost + k_omega_cost*angular_velocity_cost		
+		k_1 = 6
+		reward_1 = k_1 * stability_cost  #zt
+
+		# reward_1 = k_2/(cost**2+1e-6)
+		k_2 = 500
+		z_proj_reward_up_stage1 = (1 - z_projection)**2
+		reward_2 = k_2/(z_proj_reward_up_stage1 + 1)
+
+		if z_projection < 0:
+			k_3 = 500
+		else: 
+			k_3 = 10
+		
+		z_proj_reward_down_stage1 = (1 + z_projection)**2
+		
+		z_drift_cost = position[2] - 0.4
+
+		# head_down_reward = k_3*z_projection
+
+		# reward_4 = k_z_drift_cost*z_drift_cost
+		reward_3 = k_3/(z_proj_reward_down_stage1 + 1)
+
+		k_flag = 300
+		#reward = stage_flag*(k_flag + reward_1 + reward_2) + (1-stage_flag)*(reward_3 + 30 * reward_proj) 
+
+		reward = stage_flag*(k_flag + reward_1 + reward_2 - 30 * abs(x_projection)) + (1-stage_flag)*(reward_3 + 30 * reward_proj) 
+
+		# print("===========================time = %.4f ===========================" % self.world.time(), end="\n\r")
+		# # print("action", end="\n\r")
+		# # print(action, end="\n\r")
+		# # print("normalized_action", end="\n\r")
+		# # print(normalized_action, end="\n\r")
+		# print("z = %.8f" % position[2], end="\n\r")
+		# print("z_projection = %.8f" % z_projection, end="\n\r")
+		# print("z_drift_cost = %.8f" % z_drift_cost, end="\n\r")
+		# print("position_cost = %.8f" % position_cost, end="\n\r")
+		# print("angular_velocity_cost = %.8f" % angular_velocity_cost, end="\n\r")
+		# print("stability_cost = %.8f" % stability_cost, end="\n\r")
+		# print("z_proj_reward_up_stage1 = %.8f" % z_proj_reward_up_stage1, end="\n\r")
+		# print("z_proj_reward_down_stage1 = %.8f" % z_proj_reward_down_stage1, end="\n\r")
+		# print("angular_velocity_cost = %.8f" % angular_velocity_cost, end="\n\r")
+		# print("reward_1 = %.5f" % reward_1, end="\n\r")
+		# print("reward_2 = %.5f" % reward_2, end="\n\r")
+		# print("reward_3 = %.5f" % reward_3, end="\n\r")
+		# print("reward_4 = %.5f" % reward_4, end="\n\r")
+		# print("reward = %d" % reward, end="\n\r")	
+		# print("stage_flag = %d" % stage_flag, end="\n\r")
+		# print("reached = %d" % self.reached, end="\n\r")		
+
+		return reward
 
 	def check_collision(self):
+		collided = False
 		if self.world.collision_result.num_contacted_bodies()>0:
-			return True
-		if self.world.collision_result.num_contacts()>0:
-			return True
-		return False
+			collided = True
+		elif self.world.collision_result.num_contacts()>0:
+			collided = True
+		return collided
 
-	def radonmize(self):
-		self.flapper1.randomize()
+	def get_terminal(self):
+		done = False
+
+		if self.check_collision():
+			done = True
+		if self.world.time() > 2.0:
+			done = True
+		if abs(self.observation[9]) > 0.4:
+			done = True
+		if abs(self.observation[10]) > 0.4:
+			done = True
+		if self.observation[11] < 0.2:
+			done = True
+		if self.observation[11] > 0.8:
+			done = True
+		# if self.observation[9] > 0.1:
+		# 	done = True
+		# if self.observation[9] < -0.3:
+		# 	done = True
+		# if abs(self.observation[10]) > 0.2:
+		# 	done = True
+		# if abs(self.observation[11]) > 0.2:
+		# 	done = True
+		# R = self.flapper1.flapper_skel.bodynode('torso').world_transform()
+		# i_hat = R[0:3,0]
+		# x_projection = np.dot(i_hat,np.array([1,0,0]))
+		# if self.world.time() > 0.3 and x_projection<0:
+		# 	done = True
+		# if self.world.time() > 0.35 and self.observation[9] < -0.08:
+		# 	done = True
+		return done
+
+
+
+	def render(self):
+		fault = False
+		self.glutwindow.drawGL()
+		# if time.time() >= self.next_visulizaiton_time:
+		# 	if self.visulization:
+		# 		self.glutwindow.drawGL()
+		# 	self.next_visulizaiton_time = self.next_visulizaiton_time + 1/self.fps
+		return fault
+
+	def seed(self):
+		"""
+		if there is randomness in simulation, set the random seed here
+		implementation here
+		"""
 		return
-
-	# def render(self):
-	# 	fault = False
-	# 	self.glutwindow.drawGL()
-	# 	# if time.time() >= self.next_visulizaiton_time:
-	# 	# 	if self.visulization:
-	# 	# 		self.glutwindow.drawGL()
-	# 	# 	self.next_visulizaiton_time = self.next_visulizaiton_time + 1/self.fps
-	# 	return fault
 
 	def reset(self):
 		self.world.reset()
 		self.flapper1.reset()
 
 		self.sim_on = False
-		# self.visulization = True
-		# self.next_visulizaiton_time = 1/self.fps + time.time()
-		self.next_sensor_fusion_time = 0.0
-		self.states = self.get_state()
-		self.sensor = Sensor_IMU_Vicon(self.dt_imu, self.dt_vicon, self.states)
-		self.sensor_fusion = SensorFusion(self.dt_s, self.states, self.phantom_sensor)
-		self.radonmize()
-		self.world.reset()
-		self.flapper1.reset()
 		self.paused = False
 		self.visulization = True
 		self.next_visulizaiton_time = 1/self.fps + time.time()
@@ -180,8 +352,7 @@ class Simulation:
 		self.start_time = time.time()
 
 		self.states = self.get_state()
-		print("Simulation reset", end="\n\r")
-		return self.states
+		self.observation = self.get_observation()
 		print("Simulation reset", end="\n\r")
 		return self.states
 
@@ -200,16 +371,38 @@ class Simulation:
 		self.flapper1.set_states(positions, velocities)
 		self.update_state()
 
+	def random_init(self):
+		rpy_limit = 0.1 	# 11.4 deg
+		pqr_limit = 0.1		# 5.7 deg/s
+		xyz_limit = 0.05			# 10 cm
+		xyz_dot_limit = 0.1		# 10 cm/s
+
+		positions = np.zeros([10,1],dtype=np.float64)
+		velocities = np.zeros([10,1],dtype=np.float64)
+
+		init_attitude = np.random.uniform(-rpy_limit, rpy_limit, size=(3,1))
+		init_angular_velocity = np.random.uniform(-pqr_limit, pqr_limit, size=(3,1))
+		init_position = np.random.uniform(-xyz_limit, xyz_limit, size=(3,1))
+		init_body_velocity = np.random.uniform(-xyz_dot_limit, xyz_dot_limit, size=(3,1))
+
+		init_attitude[2] = init_attitude[2]+0
+		init_position[0] = init_position[0]-0
+		init_position[2] = init_position[2]+0
+
+		positions[0:3] = init_attitude
+		positions[3:6] = init_position
+		positions[5] = 0.5	# initial z
+		# if positions[3] < -0.21:
+		# 	positions[3] = -0.21	# initial x
+		velocities[0:6] = np.concatenate((init_angular_velocity,init_body_velocity), axis = 0)
+
+		self.reset()
+		self.set_states(positions, velocities)
+		observation = self.observation
+		self.render()
+
 
 	def step(self, action):
-		#print('===================== time = %.4f =====================' % self.world.time(), end="\n\r")
-		self.sensor.update_raw_data(self.world.time(), self.states)
-		if self.world.time()>=self.next_sensor_fusion_time:
-			self.next_sensor_fusion_time += self.dt_s
-			self.sensor_fusion.run(self.sensor,self.world.time())
-			#print('fusion_roll = %.4f, roll = %.4f' % (self.sensor_fusion.out_roll_, self.states['body_positions'][0,0]), end="\n\r")
-			#print('fusion_pitch = %.4f, pitch = %.4f' % (self.sensor_fusion.out_pitch_, self.states['body_positions'][1,0]), end="\n\r")
-			#print('fusion_yaw = %.4f, yaw = %.4f' % (self.sensor_fusion.out_yaw_, self.states['body_positions'][2,0]), end="\n\r")
 
 		max_voltage = action[0]
 		voltage_diff = action[1]
@@ -224,18 +417,44 @@ class Simulation:
 		input_voltage[0] = np.clip(input_voltage[0], -18, 18)
 		input_voltage[1] = np.clip(input_voltage[1], -18, 18)
 
-		# 12V sine wave for debugging
+		# generate input voltage or use external input
 		#input_voltage[0] = 12*np.cos(self.flapper1.frequency*2*np.pi*self.world.time())
 		#input_voltage[1] = 12*np.cos(self.flapper1.frequency*2*np.pi*self.world.time())
 
 		# drive flapper aero and motor one step
 		self.flapper1.step(self.world.time(), input_voltage)
+		#print(self.flapper1.states['left_stroke_acceleration'], end="\n\r")
+		
+		# apply stroke force
+		torques = np.zeros(self.flapper1.flapper_skel.num_dofs())
+		torques[self.flapper1.flapper_skel.dof('left_stroke').id] = self.flapper1.left_motor.get_torque()
+		torques[self.flapper1.flapper_skel.dof('right_stroke').id] = self.flapper1.right_motor.get_torque()
+		self.flapper1.flapper_skel.set_forces(torques)
+
+		# left_drive_torque = np.array([0, 0, self.flapper1.left_motor.get_torque()])
+		# right_drive_torque = np.array([0, 0, -self.flapper1.right_motor.get_torque()])
+		# self.flapper1.flapper_skel.bodynode('left_leading_edge').set_ext_torque(left_drive_torque, True)
+		# self.flapper1.flapper_skel.bodynode('right_leading_edge').set_ext_torque(right_drive_torque, True)
+		
+		# get aero force
+		left_FN = np.array([self.flapper1.left_wing.GetNormalForce(), 0, 0])	# in wing x direction
+		right_FN = 	np.array([self.flapper1.right_wing.GetNormalForce(), 0, 0])
+		left_CoP = np.array([0, self.flapper1.left_wing.GetSpanCoP(), (-1)*self.flapper1.left_wing.GetChordCoP()])
+		right_CoP = np.array([0, (-1)*self.flapper1.right_wing.GetSpanCoP(), (-1)*self.flapper1.right_wing.GetChordCoP()])
+		left_M_rd = np.array([0, self.flapper1.left_wing.GetM_rd(), 0])		# in wing y direction
+		right_M_rd = np.array([0, self.flapper1.right_wing.GetM_rd(), 0])
+
+		# apply aero force and moment on wing
+		self.flapper1.flapper_skel.bodynode('left_wing').add_ext_force(left_FN, left_CoP, True, True)
+		self.flapper1.flapper_skel.bodynode('right_wing').add_ext_force(right_FN, right_CoP, True, True)
+		self.flapper1.flapper_skel.bodynode('left_wing').add_ext_torque(left_M_rd, True)
+		self.flapper1.flapper_skel.bodynode('right_wing').add_ext_torque(right_M_rd, True)
 
 		# step forward the dart simulation
 		self.world.step()
 		self.update_state()
 
-		# # save data
+		# save data
 		# self.data['t'].append(self.world.time())
 		# self.data['left_FN'].append(self.flapper1.left_wing.GetNormalForce())
 		# self.data['left_stroke'].append(self.flapper1.flapper_skel.positions()[self.flapper1.flapper_skel.dof('left_stroke').id])
@@ -264,55 +483,25 @@ class Simulation:
 		# self.data['split_cycle'].append(split_cycle)
 		# self.data['left_voltage'].append(input_voltage[0])
 		# self.data['right_voltage'].append(input_voltage[1])
-		
+		# self.data['z'].append(self.states['body_positions'][5,0])
+		# self.data['z_dot'].append(self.states['body_spatial_velocities'][2,0])
+		# self.data['z_ddot'].append(self.states['body_spatial_accelerations'][2,0])
 		# self.data['roll'].append(self.states['body_positions'][0,0])
 		# self.data['pitch'].append(self.states['body_positions'][1,0])
 		# self.data['yaw'].append(self.states['body_positions'][2,0])
-		# self.data['p'].append(self.states['body_velocities'][0,0])
-		# self.data['q'].append(self.states['body_velocities'][1,0])
-		# self.data['r'].append(self.states['body_velocities'][2,0])
 		# self.data['x'].append(self.states['body_positions'][3,0])
 		# self.data['y'].append(self.states['body_positions'][4,0])
-		# self.data['z'].append(self.states['body_positions'][5,0])
-		# self.data['x_dot'].append(self.states['body_spatial_velocities'][0,0])
-		# self.data['y_dot'].append(self.states['body_spatial_velocities'][1,0])
-		# self.data['z_dot'].append(self.states['body_spatial_velocities'][2,0])
-		# self.data['x_ddot'].append(self.states['body_spatial_accelerations'][0,0])
-		# self.data['y_ddot'].append(self.states['body_spatial_accelerations'][1,0])
-		# self.data['z_ddot'].append(self.states['body_spatial_accelerations'][2,0])
-		# self.data['vicon_roll'].append(self.sensor.vicon_roll_)
-		# self.data['vicon_pitch'].append(self.sensor.vicon_pitch_)
-		# self.data['vicon_yaw'].append(self.sensor.vicon_yaw_)
-		# self.data['vicon_x'].append(self.sensor.vicon_x_)
-		# self.data['vicon_y'].append(self.sensor.vicon_y_)
-		# self.data['vicon_z'].append(self.sensor.vicon_z_)
-		# self.data['vicon_x_dot'].append(self.sensor_fusion.vicon_x_dot_)
-		# self.data['vicon_y_dot'].append(self.sensor_fusion.vicon_y_dot_)
-		# self.data['vicon_z_dot'].append(self.sensor_fusion.vicon_z_dot_)
-		# self.data['fuse_roll'].append(self.sensor_fusion.out_roll_)
-		# self.data['fuse_pitch'].append(self.sensor_fusion.out_pitch_)
-		# self.data['fuse_yaw'].append(self.sensor_fusion.out_yaw_)
-		# self.data['fuse_x'].append(self.sensor_fusion.out_x_)
-		# self.data['fuse_y'].append(self.sensor_fusion.out_y_)
-		# self.data['fuse_z'].append(self.sensor_fusion.out_z_)
-		# self.data['fuse_x_dot'].append(self.sensor_fusion.out_x_dot_)
-		# self.data['fuse_y_dot'].append(self.sensor_fusion.out_y_dot_)
-		# self.data['fuse_z_dot'].append(self.sensor_fusion.out_z_dot_)
-		# self.data['gx'].append(self.sensor.IMU_gx_)
-		# self.data['gy'].append(self.sensor.IMU_gy_)
-		# self.data['gz'].append(self.sensor.IMU_gz_)
-		# self.data['ax'].append(self.sensor.IMU_ax_)
-		# self.data['ay'].append(self.sensor.IMU_ay_)
-		# self.data['az'].append(self.sensor.IMU_az_)
-		# self.data['fuse_x_ddot'].append(self.sensor_fusion.p_ddot[0][0])
-		# self.data['fuse_y_ddot'].append(self.sensor_fusion.p_ddot[1][0])
-		# self.data['fuse_z_ddot'].append(self.sensor_fusion.p_ddot[2][0])
+
 
 		
 		# if self.check_collision():
 		# 	print("Colision detectecd!", end="\n\r")
 		# 	# call reset here
 		# 	# self.reset()
+
+		self.observation = self.get_observation()
+		self.reward = self.get_reward(action)
+		self.done = self.get_terminal()
 		
 		return self.states
 
@@ -335,78 +524,67 @@ class Simulation:
 			u=0
 		return u
 
+	def euler_2_R(self, phi, theta, psi):
+		R = np.zeros([3,3],dtype=np.float64)
+
+		C_phi = np.cos(phi)
+		S_phi = np.sin(phi)
+		C_theta = np.cos(theta)
+		S_theta = np.sin(theta)
+		C_psi = np.cos(psi)
+		S_psi = np.sin(psi)
+
+		R[0,0] = C_psi*C_theta
+		R[0,1] = C_psi*S_theta*S_phi - S_psi*C_phi
+		R[0,2] = C_psi*S_theta*C_phi + S_psi*S_phi
+		R[1,0] = S_psi*C_theta
+		R[1,1] = S_psi*S_theta*S_phi + C_psi*C_phi
+		R[1,2] = S_psi*S_theta*C_phi - C_psi*S_phi
+		R[2,0] = -S_theta
+		R[2,1] = C_theta*S_phi
+		R[2,2] = C_theta*C_phi
+
+		return R
 
 	def record_data(self):
 		data_file = open("pydata.txt", "w")
 		for i in range(len(self.data['t'])):
-			# data_file.write(str(self.data['t'][i]) + "\t" +
-			# 				str(self.data['left_FN'][i]) + "\t" +
-			# 				str(self.data['left_stroke'][i]) + "\t" +
-			# 				str(self.data['left_rotate'][i]) + "\t" +
-			# 				str(self.data['left_spanCoP'][i]) + "\t" +
-			# 				str(self.data['left_chordCoP'][i]) + "\t" +
-			# 				str(self.data['left_M_aero'][i]) + "\t" +
-			# 				str(self.data['left_M_rd'][i]) + "\t" +
-			# 				str(self.data['right_FN'][i]) + "\t" +
-			# 				str(self.data['right_stroke'][i]) + "\t" +
-			# 				str(self.data['right_rotate'][i]) + "\t" +
-			# 				str(self.data['right_spanCoP'][i]) + "\t" +
-			# 				str(self.data['right_chordCoP'][i]) + "\t" +
-			# 				str(self.data['right_M_aero'][i]) + "\t" +
-			# 				str(self.data['right_M_rd'][i]) + "\t" +
-			# 				str(self.data['motor_torque'][i]) + "\t" +
-			# 				str(self.data['magnetic_torque'][i]) + "\t" +
-			# 				str(self.data['inertia_torque'][i]) + "\t" +
-			# 				str(self.data['damping_torque'][i]) + "\t" +
-			# 				str(self.data['friction_torque'][i]) + "\t" +
-			# 				str(self.data['back_EMF'][i]) + "\t" +
-			# 				str(self.data['current'][i]) + "\t" +
-			# 				str(self.data['max_voltage'][i]) + "\t" +
-			# 				str(self.data['voltage_diff'][i]) + "\t" +
-			# 				str(self.data['voltage_bias'][i]) + "\t" +
-			# 				str(self.data['split_cycle'][i]) + "\t" +
-			# 				str(self.data['left_voltage'][i]) + "\t" +
-			# 				str(self.data['right_voltage'][i]) + "\t" +
-			# 				str(self.data['z'][i]) + "\t" +
-			# 				str(self.data['z_dot'][i]) + "\t" +
-			# 				str(self.data['z_ddot'][i]) + "\t" +
-			# 				str(self.data['roll'][i]) + "\t" +
-			# 				str(self.data['pitch'][i]) + "\t" +
-			# 				str(self.data['yaw'][i]) + "\t" +
-			# 				str(self.data['x'][i]) + "\t" +
-			# 				str(self.data['y'][i]) + "\t" +
-			# 				str(self.data['vicon_roll'][i]) + "\t" +
-			# 				str(self.data['vicon_pitch'][i]) + "\t" +
-			# 				str(self.data['vicon_yaw'][i]) + "\t" +
-			# 				str(self.data['fuse_roll'][i]) + "\t" +
-			# 				str(self.data['fuse_pitch'][i]) + "\t" +
-			# 				str(self.data['fuse_yaw'][i]) + "\t" +
-			# 				str(self.data['gx'][i]) + "\t" +
-			# 				str(self.data['gy'][i]) + "\t" +
-			# 				str(self.data['gz'][i]) + "\n"
-			# 				)
 			data_file.write(str(self.data['t'][i]) + "\t" +
+							str(self.data['left_FN'][i]) + "\t" +
+							str(self.data['left_stroke'][i]) + "\t" +
+							str(self.data['left_rotate'][i]) + "\t" +
+							str(self.data['left_spanCoP'][i]) + "\t" +
+							str(self.data['left_chordCoP'][i]) + "\t" +
+							str(self.data['left_M_aero'][i]) + "\t" +
+							str(self.data['left_M_rd'][i]) + "\t" +
+							str(self.data['right_FN'][i]) + "\t" +
+							str(self.data['right_stroke'][i]) + "\t" +
+							str(self.data['right_rotate'][i]) + "\t" +
+							str(self.data['right_spanCoP'][i]) + "\t" +
+							str(self.data['right_chordCoP'][i]) + "\t" +
+							str(self.data['right_M_aero'][i]) + "\t" +
+							str(self.data['right_M_rd'][i]) + "\t" +
+							str(self.data['motor_torque'][i]) + "\t" +
+							str(self.data['magnetic_torque'][i]) + "\t" +
+							str(self.data['inertia_torque'][i]) + "\t" +
+							str(self.data['damping_torque'][i]) + "\t" +
+							str(self.data['friction_torque'][i]) + "\t" +
+							str(self.data['back_EMF'][i]) + "\t" +
+							str(self.data['current'][i]) + "\t" +
+							str(self.data['max_voltage'][i]) + "\t" +
+							str(self.data['voltage_diff'][i]) + "\t" +
+							str(self.data['voltage_bias'][i]) + "\t" +
+							str(self.data['split_cycle'][i]) + "\t" +
+							str(self.data['left_voltage'][i]) + "\t" +
+							str(self.data['right_voltage'][i]) + "\t" +
+							str(self.data['z'][i]) + "\t" +
+							str(self.data['z_dot'][i]) + "\t" +
+							str(self.data['z_ddot'][i]) + "\t" +
 							str(self.data['roll'][i]) + "\t" +
 							str(self.data['pitch'][i]) + "\t" +
 							str(self.data['yaw'][i]) + "\t" +
 							str(self.data['x'][i]) + "\t" +
-							str(self.data['y'][i]) + "\t" +
-							str(self.data['z'][i]) + "\t" +
-							str(self.data['p'][i]) + "\t" +
-							str(self.data['q'][i]) + "\t" +
-							str(self.data['r'][i]) + "\t" +
-							str(self.data['x_dot'][i]) + "\t" +
-							str(self.data['y_dot'][i]) + "\t" +
-							str(self.data['z_dot'][i]) + "\t" +
-							str(self.data['x_ddot'][i]) + "\t" +
-							str(self.data['y_ddot'][i]) + "\t" +
-							str(self.data['z_ddot'][i]) + "\t" +
-							str(self.data['vicon_roll'][i]) + "\t" +
-							str(self.data['vicon_pitch'][i]) + "\t" +
-							str(self.data['vicon_yaw'][i]) + "\t" +
-							str(self.data['vicon_x'][i]) + "\t" +
-							str(self.data['vicon_y'][i]) + "\t" +
-							str(self.data['vicon_z'][i]) + "\n"
+							str(self.data['y'][i]) + "\n"
 							)
 		data_file.close()
 	
@@ -414,6 +592,7 @@ class Simulation:
 		pydart.init(verbose=False)
 		print('pydart initialization OK')
 		self.world = MyWorld(self.dt)
+
 
 	def init_glut(self,window_size = (800,600)):
 		self.glutwindow = GLUTWindow(self.world, "FWMAV")
@@ -427,172 +606,214 @@ class Simulation:
 		GLUT.glutInitWindowPosition(0, 0)
 		self.glutwindow.window = GLUT.glutCreateWindow(self.glutwindow.title)
 		self.glutwindow.initGL(*window_size)
-		self.camera_theta = 75#, for mirror 85
-		self.camera_phi = 90#, for mirror -75
+		self.camera_theta = 75
+		self.camera_phi = 90
 		self.camera_horizontal = 0.0
 		self.camera_vertical = -0.25
 		self.camera_depth = -1.5
 		self.camera_angle_increment = 5
 		self.camera_position_increment = 0.05
 		self.update_camera()
-		# self.glutwindow.scene.add_camera(Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]),"Camera Z up close")
-		# self.glutwindow.scene.set_camera(2)
+		#self.glutwindow.scene.add_camera(Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]),"Camera Z up close")
+		#self.glutwindow.scene.set_camera(2)
 		self.glutwindow.scene.resize(*window_size)
 		self.glutwindow.drawGL()
 
 	def update_camera(self):
 		self.glutwindow.scene.replace_camera(0,Trackball(theta = self.camera_theta, phi = self.camera_phi, trans=[self.camera_horizontal, self.camera_vertical, self.camera_depth]))
-		self.glutwindow.scene.set_camera(1)
+		self.glutwindow.scene.set_camera(0)
 		self.glutwindow.drawGL()
-		print("theta = %.4f, phi = %.4f" % (self.camera_theta, self.camera_phi))
 		print("\r")
 
-	# # def run(self,policy = None):
-	# 	keylistener = KeyListener(1,'Key Thread', 1)
-	# 	keylistener.start()
-	# 	self.pid_policy = PIDController(self.dt_c)
-	# 	if policy != 'pid' and policy !=None:
-	# 		policy = MyPolicy(policy)
-	# 	control_action = np.zeros(4)
+	def run(self,policy = None):
+		keylistener = KeyListener(1,'Key Thread', 1)
+		keylistener.start()
+		self.pid_policy = PIDController(self.dt_c)
+		if policy != 'pid' and policy !=None:
+			policy = MyPolicy(policy)
+		control_action = np.zeros(4)
 
-	# 	print("\n")
-	# 	print("space bar: simulation on/off", end="\n\r")
-	# 	print("'r': reset simulation", end="\n\r")
-	# 	print("'w, a, s, d' to rotate camera", end="\n\r")
-	# 	print("'z, x' to zoom camera", end="\n\r")
-	# 	print("'e, c' to adjust camera height", end="\n\r")
-	# 	print("'v': toggle visulization", end="\n\r")
-	# 	print("'q': quit", end="\n\r")
+		print("\n")
+		print("space bar: simulation on/off")
+		print("'r': reset simulation")
+		print("'w, a, s, d' to rotate camera")
+		print("'z, x' to zoom camera")
+		print("'e, c' to adjust camera height")
+		print("'v': toggle visulization")
+		print("'q': quit")
 
-	# 	# main loop
-	# 	while True:
-	# 		key = keylistener.last_key_press
-	# 		if key == 'q':
-	# 			print("Simulation terminated, buh bye!", end="\n\r")
-	# 			break
-	# 		elif key == 'r':
-	# 			self.reset()
-	# 		elif key == 'o':
-	# 			self.record_data()
-	# 		elif key == 'm':
-	# 			self.random_init()
-	# 		elif key == ' ':
-	# 			self.sim_on = not self.sim_on
-	# 		elif key == 'v':
-	# 			self.visulization = not self.visulization
-	# 			print("Visulization = %r" % self.visulization, end="\n\r")
-	# 		elif key == 'w':
-	# 			self.camera_theta -= self.camera_angle_increment
-	# 			self.update_camera()
-	# 		elif key == 's':
-	# 			self.camera_theta += self.camera_angle_increment
-	# 			self.update_camera()
-	# 		elif key == 'a':
-	# 			self.camera_phi -= self.camera_angle_increment
-	# 			self.update_camera()
-	# 		elif key == 'd':
-	# 			self.camera_phi += self.camera_angle_increment
-	# 			self.update_camera()
-	# 		elif key == 'z':
-	# 			self.camera_depth += self.camera_position_increment
-	# 			self.update_camera()
-	# 		elif key == 'x':
-	# 			self.camera_depth -= self.camera_position_increment
-	# 			self.update_camera()
-	# 		elif key == 'e':
-	# 			self.camera_vertical += self.camera_position_increment
-	# 			self.update_camera()
-	# 		elif key == 'c':
-	# 			self.camera_vertical -= self.camera_position_increment
-	# 			self.update_camera()
-	# 		keylistener.last_key_press = None
+		# main loop
+		while True:
+			key = keylistener.last_key_press
+			if key == 'q':
+				print("Simulation terminated, buh bye!", end="\n\r")
+				break
+			elif key == 'r':
+				self.reset()
+			elif key == 'o':
+				self.record_data()
+			elif key == 'm':
+				self.random_init()
+			elif key == ' ':
+				self.sim_on = not self.sim_on
+			elif key == 'v':
+				self.visulization = not self.visulization
+				print("Visulization = %r" % self.visulization, end="\n\r")
+			elif key == 'w':
+				self.camera_theta -= self.camera_angle_increment
+				self.update_camera()
+			elif key == 's':
+				self.camera_theta += self.camera_angle_increment
+				self.update_camera()
+			elif key == 'a':
+				self.camera_phi -= self.camera_angle_increment
+				self.update_camera()
+			elif key == 'd':
+				self.camera_phi += self.camera_angle_increment
+				self.update_camera()
+			elif key == 'z':
+				self.camera_depth += self.camera_position_increment
+				self.update_camera()
+			elif key == 'x':
+				self.camera_depth -= self.camera_position_increment
+				self.update_camera()
+			elif key == 'e':
+				self.camera_vertical += self.camera_position_increment
+				self.update_camera()
+			elif key == 'c':
+				self.camera_vertical -= self.camera_position_increment
+				self.update_camera()
+			keylistener.last_key_press = None
 
-	# 		if self.world.time()>=63.0:
-	# 			self.sim_on = False
+			if self.world.time()>=20.0:
+				self.sim_on = False
 
-	# 		if self.sim_on:
-	# 			if self.paused:
-	# 				print("Simulation running", end="\n\r")
-	# 				self.paused = False
-	# 				self.start_time = time.time()
-	# 				self.next_visulizaiton_time = 1/self.fps + time.time()
+			if self.sim_on:
+				if self.paused:
+					print("Simulation running", end="\n\r")
+					self.paused = False
+					self.start_time = time.time()
+					self.next_visulizaiton_time = 1/self.fps + time.time()
 
-	# 			if self.world.time()>=self.next_control_time:
-	# 				self.next_control_time += self.dt_c
-	# 				# print('update control', end="\n\r")
-	# 				if policy == None:
-	# 					control_action = [10,0,0,0]
-	# 				elif policy == 'pid':
-	# 					control_action = np.squeeze(self.pid_policy.get_action(self.states,self.dt_c,self.world.time(),self.sensor_fusion))
-	# 				else:
-	# 					action = policy.get_action(self.observation)
-	# 					action_pid = np.squeeze(self.pid_policy.get_action(self.states,self.dt_c,self.sensor_fusion))
-	# 					control_action = action + action_pid
+				if self.world.time()>=self.next_control_time:
+					self.next_control_time += self.dt_c
+					# print('update control', end="\n\r")
+					if policy == None:
+						control_action = [10,0,0,0]
+					elif policy == 'pid':
+						control_action = np.squeeze(self.pid_policy.get_action(self.states,self.dt_c, 1))
+					else:
+						action = policy.get_action(self.observation)
 
-	# 			self.step(control_action)
-	# 			# if policy == None:
-	# 			# 	for i in range(20):
-	# 			# 		self.step([10,0,0,0])
+						# get reached
 
-	# 			# elif policy == 'pid':
-	# 			# 	action_pid = np.squeeze(self.pid_policy.get_action(self.states,0.002))
-	# 			# 	for i in range(20):
-	# 			# 		self.step(action_pid)
+						action_pid = np.squeeze(self.pid_policy.get_action(self.states, self.dt_c, self.reached))
 
-	# 			# else:
-	# 			# 	action = policy.get_action(self.observation)
-	# 			# 	for i in range(20):
-	# 			# 		self.step(action)
+						flapper1_states = self.states
+						x = flapper1_states['body_positions'][3]
+						x_dot = flapper1_states['body_spatial_velocities'][0]	# spatial x_dot
+						yaw_angle = flapper1_states['body_positions'][2]
+						# print('yaw_error in action')
+						# print(yaw_error)
+
+						# combine controller action and policy action
+						control_action = np.clip((action + action_pid), self.total_action_lb, self.total_action_ub)
+
+						# zt for playing
+						R = self.flapper1.flapper_skel.bodynode('torso').world_transform()
+						k_hat = R[0:3,2]
+						z_projection = np.dot(k_hat,np.array([0,0,1]))
+
+						roll_vel = flapper1_states['body_velocities'][0]	# p
+						pitch_vel = flapper1_states['body_velocities'][1]	# q
+
+						if self.reached == 0 and self.upside_down == 1 and z_projection > 0.8 and abs(roll_vel) < 160: #roll_vel<+-200
+							self.reached = 1
+
+						# if self.reached == 1:
+						# 	total_action = np.clip((action_pid), self.action_lb, self.action_ub)
+
+						# if self.reached == 0 and z_projection > 0.707 and self.sim.upside_down and roll_vel < 80 and pitch_vel < 80:
+						# 	self.reached = 1
+
+						# if self.reached == 1:
+						# 	total_action = np.clip((action_pid), self.action_lb, self.action_ub)
+
+						# if self.reached == 0 and x > -0.08 and abs(x_dot) < 1 and abs(yaw_angle) < np.pi/4:
+						# 	self.reached = 1
+
+						# if self.reached == 1:
+						# 	control_action = np.squeeze(self.pid_policy.get_action(self.states,self.dt_c, 1))
+						# print("reached", end="\n\r")
+						# print(self.reached, end="\n\r")
+
+				# for i in range(20):
+				# 	self.step(control_action)
+				self.step(control_action)
+				
+				# if policy == None:
+				# 	for i in range(20):
+				# 		self.step([10,0,0,0])
+
+				# elif policy == 'pid':
+				# 	action_pid = np.squeeze(self.pid_policy.get_action(self.states,0.002))
+				# 	for i in range(20):
+				# 		self.step(action_pid)
+
+				# else:
+				# 	action = policy.get_action(self.observation)
+				# 	for i in range(20):
+				# 		self.step(action)
 					
 				
-	# 			if time.time() >= self.next_visulizaiton_time:
-	# 				if self.world.time()>=63.0:
-	# 					self.sim_on = not self.sim_on
-	# 				if self.visulization:
-	# 					self.glutwindow.drawGL()
-	# 				self.next_visulizaiton_time = self.next_visulizaiton_time + 1/self.fps
+				if time.time() >= self.next_visulizaiton_time:
+					if self.world.time()>=20.0:
+						self.sim_on = not self.sim_on
+					if self.visulization:
+						self.glutwindow.drawGL()
+					self.next_visulizaiton_time = self.next_visulizaiton_time + 1/self.fps
 
-	# 		else:
-	# 			if not self.paused:
-	# 				self.glutwindow.drawGL()
-	# 				self.elapse_time += (time.time() - self.start_time)
-	# 				print("Simulation paused, running time = %.4f" % self.elapse_time, end="\n\r")
-	# 			self.paused = True
-	# 			time.sleep(0.01)
-	# 	return
+			else:
+				if not self.paused:
+					self.glutwindow.drawGL()
+					self.elapse_time += (time.time() - self.start_time)
+					print("Simulation paused, running time = %.4f" % self.elapse_time, end="\n\r")
+				self.paused = True
+				time.sleep(0.01)
+		return
 
-# class MyPolicy():
-# 	def __init__(self, policy_name):
-# 		import pickle
-# 		import os
+class MyPolicy():
+	def __init__(self, policy_name):
+		import pickle
+		import os
 
-# 		log_dir = os.path.join(os.getcwd(),'data')
+		log_dir = os.path.join(os.getcwd(),'data')
 
-# 		with open(os.path.join(log_dir,policy_name), 'rb') as input:
-# 			policy = pickle.load(input)
+		with open(os.path.join(log_dir,policy_name), 'rb') as input:
+			policy = pickle.load(input)
 
-# 		self.h0w = policy._cached_params[()][0].get_value()
-# 		self.h0b = policy._cached_params[()][1].get_value()
-# 		self.h1w = policy._cached_params[()][2].get_value()
-# 		self.h1b = policy._cached_params[()][3].get_value()
-# 		self.ow = policy._cached_params[()][4].get_value()
-# 		self.ob = policy._cached_params[()][5].get_value()
+		self.h0w = policy._cached_params[()][0].get_value()
+		self.h0b = policy._cached_params[()][1].get_value()
+		self.h1w = policy._cached_params[()][2].get_value()
+		self.h1b = policy._cached_params[()][3].get_value()
+		self.ow = policy._cached_params[()][4].get_value()
+		self.ob = policy._cached_params[()][5].get_value()
 
-# 		# action lb ub are set in fwmav_sim_env.py
-# 		self.action_lb = np.array([-5.0, -3, -3.5, -0.15])
-# 		self.action_ub = np.array([8.0, 3, 3.5, 0.15])
+		# action lb ub are set in fwmav_sim_env.py
+		self.action_lb = np.array([-5.0, -3, -3.5, -0.15])
+		self.action_ub = np.array([8.0, 3, 3.5, 0.15])
 
-# 		# ologstd = policy._cached_params[()][6].get_value()
-# 	def get_action(self,observation):
-# 		h0_out = np.tanh(np.matmul(observation.T, self.h0w) + self.h0b)
-# 		h1_out = np.tanh(np.matmul(h0_out, self.h1w) + self.h1b)
-# 		action = np.tanh(np.matmul(h1_out, self.ow) + self.ob)
+		# ologstd = policy._cached_params[()][6].get_value()
+	def get_action(self,observation):
+		h0_out = np.tanh(np.matmul(observation.T, self.h0w) + self.h0b)
+		h1_out = np.tanh(np.matmul(h0_out, self.h1w) + self.h1b)
+		action = np.tanh(np.matmul(h1_out, self.ow) + self.ob)
 
-# 		# scale action
-# 		scaled_action = self.action_lb + (action + 1.) * 0.5 * (self.action_ub - self.action_lb)
-# 		scaled_action = np.clip(scaled_action, self.action_lb, self.action_ub)
+		# scale action
+		scaled_action = self.action_lb + (action + 1.) * 0.5 * (self.action_ub - self.action_lb)
+		scaled_action = np.clip(scaled_action, self.action_lb, self.action_ub)
 
-# 		return scaled_action
+		return scaled_action
 
 # my world class
 class MyWorld(pydart.World):
@@ -628,6 +849,9 @@ class MyWorld(pydart.World):
 		ri.draw_text([20, 220], "x = %.4f" % self.skeletons[0].positions()[self.skeletons[0].dof('torso_to_world_pos_x').id])
 		ri.draw_text([20, 240], "y = %.4f" % self.skeletons[0].positions()[self.skeletons[0].dof('torso_to_world_pos_y').id])
 		ri.draw_text([20, 260], "z = %.4f" % self.skeletons[0].positions()[self.skeletons[0].dof('torso_to_world_pos_z').id])
+		ri.draw_text([20, 280], "x_dot = %.4f" % self.skeletons[0].bodynode('torso').com_linear_velocity()[0])
+		ri.draw_text([20, 300], "y_dot = %.4f" % self.skeletons[0].bodynode('torso').com_linear_velocity()[1])
+		ri.draw_text([20, 320], "z_dot = %.4f" % self.skeletons[0].bodynode('torso').com_linear_velocity()[2])
 		# visulize force not working
 		# pl0 = self.skeletons[1].bodynode('left_wing').C
 		# pl1 = pl0 + 0.01 * np.array([1,0,0])
@@ -636,20 +860,20 @@ class MyWorld(pydart.World):
 
 
 # keyboard input thread
-# class KeyListener(threading.Thread):
-# 	def __init__(self,threadID,name,counter):
-# 		threading.Thread.__init__(self)
-# 		self.threadID = threadID
-# 		self.name = name
-# 		self.counter = counter
-# 		self.last_key_press = None
-# 		self.new_key_pressed = False
+class KeyListener(threading.Thread):
+	def __init__(self,threadID,name,counter):
+		threading.Thread.__init__(self)
+		self.threadID = threadID
+		self.name = name
+		self.counter = counter
+		self.last_key_press = None
+		self.new_key_pressed = False
 
-# 	def run(self):
-# 		print("Key listening thread started")
-# 		# print('Starting ' + self.name)
-# 		while True:
-# 			self.last_key_press = click.getchar()
-# 			if self.last_key_press == 'q':
-# 				print("Key listening thread terminated")
-# 				break
+	def run(self):
+		print("Key listening thread started")
+		# print('Starting ' + self.name)
+		while True:
+			self.last_key_press = click.getchar()
+			if self.last_key_press == 'q':
+				print("Key listening thread terminated")
+				break
